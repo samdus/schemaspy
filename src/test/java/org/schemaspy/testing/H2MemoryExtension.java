@@ -19,7 +19,9 @@
 package org.schemaspy.testing;
 
 import org.h2.Driver;
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,7 +40,7 @@ import java.util.stream.Collectors;
 /**
  * @author Nils Petzaell
  */
-public class H2MemoryRule extends ExternalResource {
+public class H2MemoryExtension implements AfterEachCallback, BeforeEachCallback {
 
   private final String connectionString;
   private String scriptPath;
@@ -46,16 +48,16 @@ public class H2MemoryRule extends ExternalResource {
 
   private Connection keepAlive;
 
-  public H2MemoryRule(String name) {
+  public H2MemoryExtension(String name) {
     this.connectionString = "jdbc:h2:mem:" + name;
   }
 
-  public H2MemoryRule addSqls(String...sqls) {
+  public H2MemoryExtension addSqls(String...sqls) {
     Arrays.stream(sqls).forEach(s -> this.sqls.add(s));
     return this;
   }
 
-  public H2MemoryRule addSqlScript(String scriptPath) {
+  public H2MemoryExtension addSqlScript(String scriptPath) {
     this.scriptPath = scriptPath;
     return this;
   }
@@ -65,7 +67,7 @@ public class H2MemoryRule extends ExternalResource {
   }
 
   @Override
-  protected void before() throws Throwable {
+  public void beforeEach(ExtensionContext extensionContext) throws Exception {
     loadScript();
     Driver.load();
     String user = "sa";
@@ -93,7 +95,7 @@ public class H2MemoryRule extends ExternalResource {
   }
 
   @Override
-  protected void after() {
+  public void afterEach(ExtensionContext extensionContext) throws Exception {
     try {
       if (keepAlive != null && !keepAlive.isClosed()) {
         keepAlive.close();

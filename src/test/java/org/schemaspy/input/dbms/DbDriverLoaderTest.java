@@ -27,18 +27,13 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.schemaspy.input.dbms.config.SimplePropertiesResolver;
 import org.schemaspy.input.dbms.exceptions.ConnectionFailure;
-import org.schemaspy.testing.H2MemoryRule;
+import org.schemaspy.testing.H2MemoryExtension;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URI;
 import java.nio.file.Paths;
 import java.sql.Driver;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -49,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 public class DbDriverLoaderTest {
 
   @Rule
-  public H2MemoryRule h2 = new H2MemoryRule("DbDriverLoaderTest");
+  public H2MemoryExtension h2 = new H2MemoryExtension("DbDriverLoaderTest");
 
   @Test
   public void testGetConnection() throws IOException {

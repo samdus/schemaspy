@@ -18,10 +18,10 @@
  */
 package org.schemaspy.integrationtesting.h2;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mock;
 import org.schemaspy.cli.CommandLineArgumentParser;
 import org.schemaspy.cli.CommandLineArguments;
@@ -30,11 +30,11 @@ import org.schemaspy.input.dbms.service.SqlService;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Table;
-import org.schemaspy.testing.H2MemoryRule;
+import org.schemaspy.testing.H2MemoryExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import javax.script.ScriptException;
 import java.io.IOException;
@@ -46,13 +46,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Nils Petzaell
  */
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest
 @DirtiesContext
 public class H2KeywordIT {
 
-    @ClassRule
-    public static H2MemoryRule h2MemoryRule = new H2MemoryRule("h2keyword").addSqlScript("src/test/resources/integrationTesting/h2/dbScripts/keyword_in_table.sql");
+    @RegisterExtension
+    public static H2MemoryExtension h2MemoryExtension = new H2MemoryExtension("h2keyword").addSqlScript("src/test/resources/integrationTesting/h2/dbScripts/keyword_in_table.sql");
 
     @Autowired
     private SqlService sqlService;
@@ -62,7 +62,7 @@ public class H2KeywordIT {
 
     private static Database database;
 
-    @Before
+    @BeforeEach
     public synchronized void createDatabaseRepresentation() throws SQLException, IOException, ScriptException, URISyntaxException {
         if (database == null) {
             doCreateDatabaseRepresentation();
@@ -73,10 +73,10 @@ public class H2KeywordIT {
         String[] args = {
             "-t", "src/test/resources/integrationTesting/dbTypes/h2memory",
             "-db", "h2keyword",
-            "-s", h2MemoryRule.getConnection().getSchema(),
+            "-s", h2MemoryExtension.getConnection().getSchema(),
             "-o", "target/testout/integrationtesting/h2/keyword",
             "-u", "sa",
-            "-cat", h2MemoryRule.getConnection().getCatalog(),
+            "-cat", h2MemoryExtension.getConnection().getCatalog(),
 
         };
         CommandLineArguments arguments = new CommandLineArgumentParser(

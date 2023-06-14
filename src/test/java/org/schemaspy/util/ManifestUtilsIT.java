@@ -20,14 +20,14 @@ package org.schemaspy.util;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.schemaspy.testing.AssumeClassIsPresentRule;
+import org.schemaspy.testing.AssumeClassIsPresentExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 //Only run from maven
 public class ManifestUtilsIT {
 
     @ClassRule
-    public static AssumeClassIsPresentRule rule = new AssumeClassIsPresentRule("org.apache.maven.surefire.providerapi.SurefireProvider");
+    public static AssumeClassIsPresentExtension rule = new AssumeClassIsPresentExtension("org.apache.maven.surefire.providerapi.SurefireProvider");
 
     @Test
     public void getImplementationVersion() {

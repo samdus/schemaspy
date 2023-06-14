@@ -22,6 +22,8 @@ import com.github.npetzall.testcontainers.junit.jdbc.JdbcContainerRule;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
@@ -33,11 +35,11 @@ import org.schemaspy.input.dbms.service.SqlService;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Table;
-import org.schemaspy.testing.AssumeClassIsPresentRule;
+import org.schemaspy.testing.AssumeClassIsPresentExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.InformixContainer;
 
 import java.io.IOException;
@@ -50,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Nils Petzaell
  */
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest
 @DirtiesContext
 public class InformixCheckConstraintIT {
@@ -62,7 +64,8 @@ public class InformixCheckConstraintIT {
 
     private static Database database;
 
-    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentRule("com.informix.jdbc.IfxDriver");
+    @RegisterExtension
+    public static AssumeClassIsPresentExtension jdbcDriverClassPresentExtension = new AssumeClassIsPresentExtension("com.informix.jdbc.IfxDriver");
 
     @SuppressWarnings("unchecked")
     public static JdbcContainerRule<InformixContainer<?>> jdbcContainerRule =
@@ -74,7 +77,7 @@ public class InformixCheckConstraintIT {
     @ClassRule
     public static final TestRule chain = RuleChain
             .outerRule(jdbcContainerRule)
-            .around(jdbcDriverClassPresentRule);
+            .around(jdbcDriverClassPresentExtension);
 
     @Before
     public synchronized void gatheringSchemaDetailsTest() throws SQLException, IOException {

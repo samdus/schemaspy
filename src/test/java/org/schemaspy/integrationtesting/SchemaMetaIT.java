@@ -35,7 +35,7 @@ import org.schemaspy.model.DbmsMeta;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.output.dot.schemaspy.DefaultFontConfig;
 import org.schemaspy.output.dot.schemaspy.DotFormatter;
-import org.schemaspy.testing.H2MemoryRule;
+import org.schemaspy.testing.H2MemoryExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -61,7 +61,7 @@ public class SchemaMetaIT {
     private static String BY_SCHEMA_META_COMMENT = "Set from SchemaMeta";
 
     @ClassRule
-    public static H2MemoryRule h2MemoryRule = new H2MemoryRule("SchemaMetaIT").addSqlScript("src/test/resources/integrationTesting/schemaMetaIT/dbScripts/shemaMetaIT.h2.sql");
+    public static H2MemoryExtension h2MemoryRule = new H2MemoryExtension("SchemaMetaIT").addSqlScript("src/test/resources/integrationTesting/schemaMetaIT/dbScripts/shemaMetaIT.h2.sql");
 
     @Autowired
     private SqlService sqlService;

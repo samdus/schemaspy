@@ -19,6 +19,9 @@
 package org.schemaspy.testing;
 
 import org.junit.AssumptionViolatedException;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -26,21 +29,20 @@ import org.junit.runners.model.Statement;
 /**
  * @author Nils Petzaell
  */
-public class AssumeClassIsPresentRule implements TestRule {
+public class AssumeClassIsPresentExtension implements BeforeAllCallback {
 
     private final String className;
 
-    public AssumeClassIsPresentRule(String className) {
+    public AssumeClassIsPresentExtension(String className) {
         this.className = className;
     }
 
     @Override
-    public Statement apply(Statement base, Description description) {
+    public void beforeAll(ExtensionContext extensionContext) throws Exception {
         try {
             Class.forName(className);
         } catch (ClassNotFoundException e) {
-            throw new AssumptionViolatedException("Class not present " + className);
+            Assumptions.abort("Class not present " + className);
         }
-        return base;
     }
 }

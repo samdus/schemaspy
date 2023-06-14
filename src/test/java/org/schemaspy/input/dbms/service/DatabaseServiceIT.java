@@ -28,7 +28,7 @@ import org.schemaspy.cli.CommandLineArguments;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Sequence;
-import org.schemaspy.testing.H2MemoryRule;
+import org.schemaspy.testing.H2MemoryExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -51,7 +51,7 @@ public class DatabaseServiceIT {
     private static String CREATE_SEQUENCE = "CREATE SEQUENCE SEQ_CLIENT start with 5 increment by 2";
 
     @Rule
-    public H2MemoryRule h2MemoryRule = new H2MemoryRule("DatabaseServiceIT").addSqls(
+    public H2MemoryExtension h2MemoryRule = new H2MemoryExtension("DatabaseServiceIT").addSqls(
         CREATE_SCHEMA,
         SET_SCHEMA,
         CREATE_TABLE,

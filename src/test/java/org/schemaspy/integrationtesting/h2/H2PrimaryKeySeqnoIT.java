@@ -30,7 +30,7 @@ import org.schemaspy.input.dbms.service.SqlService;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.TableColumn;
-import org.schemaspy.testing.H2MemoryRule;
+import org.schemaspy.testing.H2MemoryExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -52,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class H2PrimaryKeySeqnoIT {
 
     @ClassRule
-    public static H2MemoryRule h2MemoryRule = new H2MemoryRule("pkorder").addSqlScript("src/test/resources/integrationTesting/h2/dbScripts/pkordering.sql");
+    public static H2MemoryExtension h2MemoryRule = new H2MemoryExtension("pkorder").addSqlScript("src/test/resources/integrationTesting/h2/dbScripts/pkordering.sql");
 
     @Autowired
     private SqlService sqlService;

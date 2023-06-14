@@ -26,7 +26,7 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.schemaspy.cli.SchemaSpyRunner;
-import org.schemaspy.testing.AssumeClassIsPresentRule;
+import org.schemaspy.testing.AssumeClassIsPresentExtension;
 import org.schemaspy.testing.IgnoreNonPrintedInCData;
 import org.schemaspy.testing.IgnoreUsingXPath;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +62,7 @@ public class InformixIndexXMLIT {
     private static URL expectedDeletionOrder = InformixIndexXMLIT.class.getResource("/integrationTesting/informix/expecting/deletionOrder.txt");
     private static URL expectedInsertionOrder = InformixIndexXMLIT.class.getResource("/integrationTesting/informix/expecting/insertionOrder.txt");
 
-    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentRule("com.informix.jdbc.IfxDriver");
+    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentExtension("com.informix.jdbc.IfxDriver");
 
     @SuppressWarnings("unchecked")
     public static JdbcContainerRule<InformixContainer<?>> jdbcContainerRule =

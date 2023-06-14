@@ -33,7 +33,7 @@ import org.schemaspy.input.dbms.service.SqlService;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Table;
-import org.schemaspy.testing.AssumeClassIsPresentRule;
+import org.schemaspy.testing.AssumeClassIsPresentExtension;
 import org.schemaspy.testing.SQLScriptsRunner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -63,7 +63,7 @@ public class InformixRoutinesIT {
 
     private static Database database;
 
-    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentRule("com.informix.jdbc.IfxDriver");
+    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentExtension("com.informix.jdbc.IfxDriver");
 
     @SuppressWarnings("unchecked")
     public static JdbcContainerRule<InformixContainer<?>> jdbcContainerRule =

@@ -34,7 +34,7 @@ import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Table;
 import org.schemaspy.model.TableColumn;
-import org.schemaspy.testing.AssumeClassIsPresentRule;
+import org.schemaspy.testing.AssumeClassIsPresentExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -69,7 +69,7 @@ public class OracleIT {
 
     private static Database database;
 
-    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentRule("oracle.jdbc.OracleDriver");
+    public static TestRule jdbcDriverClassPresentRule = new AssumeClassIsPresentExtension("oracle.jdbc.OracleDriver");
 
     @SuppressWarnings("unchecked")
     public static JdbcContainerRule<OracleContainer> jdbcContainerRule =

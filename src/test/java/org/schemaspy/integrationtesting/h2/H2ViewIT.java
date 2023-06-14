@@ -30,7 +30,7 @@ import org.schemaspy.input.dbms.service.SqlService;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Table;
-import org.schemaspy.testing.H2MemoryRule;
+import org.schemaspy.testing.H2MemoryExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class H2ViewIT {
 
     @ClassRule
-    public static H2MemoryRule h2MemoryRule = new H2MemoryRule("h2view").addSqlScript("src/test/resources/integrationTesting/h2/dbScripts/2tables1view.sql");
+    public static H2MemoryExtension h2MemoryRule = new H2MemoryExtension("h2view").addSqlScript("src/test/resources/integrationTesting/h2/dbScripts/2tables1view.sql");
 
     @Autowired
     private SqlService sqlService;

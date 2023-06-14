@@ -1,10 +1,13 @@
 package org.schemaspy.testing;
 
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.security.Permission;
 
-public class ExitCodeRule extends ExternalResource {
+@SuppressWarnings("removal")
+public class ExitCodeExtension implements AfterEachCallback, BeforeEachCallback {
 
     private SecurityManager securityManager;
     private int exitCode;
@@ -14,13 +17,13 @@ public class ExitCodeRule extends ExternalResource {
     }
 
     @Override
-    protected void before() throws Throwable {
+    public void beforeEach(ExtensionContext extensionContext) throws Exception {
         securityManager = System.getSecurityManager();
         System.setSecurityManager(new ExitPreventionSecurityManager());
     }
 
     @Override
-    protected void after() {
+    public void afterEach(ExtensionContext extensionContext) throws Exception {
         System.setSecurityManager(securityManager);
     }
 

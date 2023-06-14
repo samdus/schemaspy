@@ -1,29 +1,25 @@
 package org.schemaspy;
 
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.schemaspy.testing.ExitCodeRule;
-import org.springframework.boot.test.system.OutputCaptureRule;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.schemaspy.testing.ExitCodeExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(SpringRunner.class)
+@ExtendWith(OutputCaptureExtension.class)
 public class MainTest {
 
-    @Rule
-    public OutputCaptureRule resettingOutputCapture = new OutputCaptureRule();
-
-    @Rule
-    public ExitCodeRule exitCodeRule = new ExitCodeRule();
+    @RegisterExtension
+    public ExitCodeExtension exitCodeExtension = new ExitCodeExtension();
 
     @Test
-    public void callsSystemExit() {
-        resettingOutputCapture.expect(Matchers.containsString("StackTraces have been omitted"));
+    public void callsSystemExit(CapturedOutput output) {
+        assertThat(output).contains("StackTraces have been omitted");
         try {
             Main.main(
                     "-t", "mysql",
@@ -35,7 +31,7 @@ public class MainTest {
                     "--logging.config="+ Paths.get("src","test","resources","logback-debugEx.xml").toString()
             );
         } catch (SecurityException ignore) { }
-        assertThat(exitCodeRule.getExitCode()).isEqualTo(3);
+        assertThat(exitCodeExtension.getExitCode()).isEqualTo(3);
     }
 
 }
