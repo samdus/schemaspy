@@ -23,23 +23,33 @@
  */
 package org.schemaspy.input.dbms.service;
 
-import org.schemaspy.input.dbms.ConnectionConfig;
-import org.schemaspy.input.dbms.DbDriverLoader;
-import org.schemaspy.model.Database;
-import org.schemaspy.model.DbmsMeta;
-import org.schemaspy.model.InvalidConfigurationException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.*;
-import java.util.regex.Matcher;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.regex.Pattern;
+
+import org.schemaspy.connection.SqlConnection;
+import org.schemaspy.input.dbms.service.name.DatabaseQuoted;
+import org.schemaspy.input.dbms.service.name.Sanitized;
+import org.schemaspy.model.Database;
+import org.schemaspy.model.DbmsMeta;
+import org.schemaspy.model.InvalidConfigurationException;
+import org.schemaspy.util.naming.EmptyName;
+import org.schemaspy.util.naming.Name;
+import org.schemaspy.util.naming.NameFromString;
+import org.schemaspy.util.naming.Qualified;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.util.Optional.ofNullable;
 
@@ -63,38 +73,13 @@ public class SqlService {
     private DatabaseMetaData databaseMetaData;
     private DbmsMeta dbmsMeta;
     private Pattern invalidIdentifierPattern;
-    private Set<String> allKeywords;
 
-    public DatabaseMetaData connect(ConnectionConfig connectionConfig) throws IOException, SQLException {
-        return connect(new DbDriverLoader(connectionConfig).getConnection());
-    }
-
-    public DatabaseMetaData connect(Connection connection) throws SQLException {
-        this.connection = connection;
-        databaseMetaData = connection.getMetaData();
+    public DatabaseMetaData connect(SqlConnection sqlConnection) throws SQLException, IOException {
+        this.connection = sqlConnection.connection();
+        databaseMetaData = this.connection.getMetaData();
         dbmsMeta = dbmsService.fetchDbmsMeta(databaseMetaData);
-        invalidIdentifierPattern = createInvalidIdentifierPattern(databaseMetaData);
-        allKeywords = dbmsMeta.getAllKeywords();
+        invalidIdentifierPattern = new InvalidIdentifierPattern(databaseMetaData).pattern();
         return databaseMetaData;
-    }
-
-
-    /**
-     * Return a <code>Pattern</code> whose matcher will return <code>true</code>
-     * when run against an identifier that contains a character that is not
-     * acceptable by the database without being quoted.
-     */
-    private static Pattern createInvalidIdentifierPattern(DatabaseMetaData databaseMetaData) throws SQLException {
-        StringBuilder validChars = new StringBuilder("a-zA-Z0-9_");
-        String reservedRegexChars = "-&^";
-        String extraValidChars = databaseMetaData.getExtraNameCharacters();
-        for (int i = 0; i < extraValidChars.length(); ++i) {
-            char ch = extraValidChars.charAt(i);
-            if (reservedRegexChars.indexOf(ch) >= 0)
-                validChars.append("" + "\\");
-            validChars.append(ch);
-        }
-        return Pattern.compile("[^" + validChars + "]");
     }
 
     public Connection getConnection() {
@@ -155,7 +140,7 @@ public class SqlService {
         if (Objects.isNull(schema)) {
             schema = dbName; // some 'schema-less' db's treat the db name like a schema (unusual case)
         }
-        
+
         namedParams.put(":dbname", dbName);
         namedParams.put(":schema", schema);
         namedParams.put(":owner", schema); // alias for :schema
@@ -172,8 +157,10 @@ public class SqlService {
         while (nextColon != -1) {
             String paramName = new StringTokenizer(sql.substring(nextColon), " ,\"')").nextToken();
             String paramValue = namedParams.get(paramName);
-            if (Objects.isNull(paramValue))
-                throw new InvalidConfigurationException("Unexpected named parameter '" + paramName + "' found in SQL '" + sql + "'");
+            if (Objects.isNull(paramValue)) {
+                throw new InvalidConfigurationException(
+                    "Unexpected named parameter '" + paramName + "' found in SQL '" + sql + "'");
+            }
             sqlParams.add(paramValue);
             sql.replace(nextColon, nextColon + paramName.length(), "?"); // replace with a ?
             nextColon = sql.indexOf(":", nextColon);
@@ -187,48 +174,42 @@ public class SqlService {
     }
 
     public String getQualifiedTableName(String catalog, String schema, String tableName, boolean forceQuotes) {
-        String schemaOrCatalog = getSchemaOrCatalog(ofNullable(schema).orElse(catalog), forceQuotes);
-        if (forceQuotes) {
-            return schemaOrCatalog + quoteIdentifier(tableName);
-        } else {
-            return schemaOrCatalog + getQuotedIdentifier(tableName);
-        }
+        final String maybe = ofNullable(schema).orElse(catalog);
+
+        final Name schemaOrCatalog = Objects.isNull(maybe)
+            ? new EmptyName()
+            : getSchemaOrCatalog(new NameFromString(maybe), forceQuotes);
+
+        final Name table = forceQuotes ? quoteIdentifier(tableName)
+            : new Sanitized(
+                this.invalidIdentifierPattern,
+                this.dbmsMeta,
+                new NameFromString(tableName)
+            );
+
+        return new Qualified(table, schemaOrCatalog).value();
     }
 
-    private String getSchemaOrCatalog(String schemaOrCatalog, boolean forceQuotes) {
-        if (Objects.isNull(schemaOrCatalog)) {
-            return "";
-        }
-        if (forceQuotes) {
-            return quoteIdentifier(schemaOrCatalog) + ".";
-        } else {
-            return getQuotedIdentifier(schemaOrCatalog) + ".";
-        }
+    private Name getSchemaOrCatalog(
+        final Name schemaOrCatalog,
+        final boolean forceQuotes
+    ) {
+        return forceQuotes ?
+            new DatabaseQuoted(
+                this.dbmsMeta,
+                schemaOrCatalog
+            ) :
+            new Sanitized(
+                this.invalidIdentifierPattern,
+                this.dbmsMeta,
+                schemaOrCatalog
+            );
     }
 
-    /**
-     * Return <code>id</code> quoted if required, otherwise return <code>id</code>
-     *
-     * @param id
-     * @return
-     */
-    public String getQuotedIdentifier(String id) {
-        // look for any character that isn't valid (then matcher.find() returns true)
-        Matcher matcher = invalidIdentifierPattern.matcher(id);
-
-        boolean quotesRequired = matcher.find() || allKeywords.contains(id);
-
-        if (quotesRequired) {
-            // name contains something that must be quoted
-            return quoteIdentifier(id);
-        }
-
-        // no quoting necessary
-        return id;
-    }
-
-    public String quoteIdentifier(String id) {
-        String quote = dbmsMeta.getIdentifierQuoteString();
-        return quote + id + quote;
+    public Name quoteIdentifier(String id) {
+        return new DatabaseQuoted(
+            dbmsMeta,
+            new NameFromString(id)
+        );
     }
 }

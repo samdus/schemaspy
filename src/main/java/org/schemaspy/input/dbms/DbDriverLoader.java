@@ -23,22 +23,14 @@
  */
 package org.schemaspy.input.dbms;
 
-import java.sql.Connection;
-import org.schemaspy.connection.ScExceptionChecked;
-import org.schemaspy.connection.ScSimple;
+import java.sql.Driver;
+
 import org.schemaspy.input.dbms.classloader.ClClasspath;
-import org.schemaspy.input.dbms.classpath.GetExistingUrls;
+import org.schemaspy.input.dbms.driver.Driversource;
 import org.schemaspy.input.dbms.driver.DsCached;
 import org.schemaspy.input.dbms.driver.DsDriverClass;
 import org.schemaspy.input.dbms.driverclass.DcFacade;
-import org.schemaspy.input.dbms.driverpath.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.sql.Driver;
-import java.util.*;
+import org.schemaspy.input.dbms.driverpath.Driverpath;
 
 /**
  * @author John Currier
@@ -47,60 +39,28 @@ import java.util.*;
  * @author Nils Petzaell
  * @author Daniel Watt
  */
-public class DbDriverLoader {
+public class DbDriverLoader implements Driversource {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private final ConnectionConfig connectionConfig;
-    private final ConnectionURLBuilder urlBuilder;
-    private final String[] driverClass;
-    private Driverpath driverPath;
+    private final Driversource origin;
 
-    public DbDriverLoader(final ConnectionConfig connectionConfig) {
-        this(connectionConfig, new ConnectionURLBuilder(connectionConfig));
-    }
-
-    public DbDriverLoader(final ConnectionConfig connectionConfig, final ConnectionURLBuilder urlBuilder) {
-        this(connectionConfig, urlBuilder, connectionConfig.getDatabaseTypeProperties());
-    }
-
-    public DbDriverLoader(
-        final ConnectionConfig connectionConfig,
-        final ConnectionURLBuilder urlBuilder,
-        final Properties properties
-    ) {
+    public DbDriverLoader(final String[] driverClass, final Driverpath driverPath) {
         this(
-            connectionConfig,
-            urlBuilder,
-            properties.getProperty("driver").split(","),
-            new DpMissingPathChecked(
-                new DpFallback(
-                    new DpConnectionConfig(connectionConfig),
-                    new DpFallback(
-                        new DpProperties(properties),
-                        new DpNull()
+            new DsCached(
+                new DsDriverClass(
+                    new DcFacade(
+                        driverClass,
+                        new ClClasspath(
+                            driverPath
+                        )
                     )
                 )
             )
         );
     }
 
-    public DbDriverLoader(
-        final ConnectionConfig connectionConfig,
-        final ConnectionURLBuilder urlBuilder,
-        final String[] driverClass,
-        final Driverpath driverPath
-    ) {
-        this.connectionConfig = connectionConfig;
-        this.urlBuilder = urlBuilder;
-        this.driverClass = driverClass;
-        this.driverPath = driverPath;
-    }
+    public DbDriverLoader(final Driversource origin) {
 
-    public Connection getConnection() throws IOException {
-        return new ScExceptionChecked(
-            this.urlBuilder,
-            new ScSimple(this.connectionConfig, this.urlBuilder, this::getDriver)
-        ).connection();
+        this.origin = origin;
     }
 
     /**
@@ -109,23 +69,10 @@ public class DbDriverLoader {
      *
      * @return
      */
-    protected synchronized Driver getDriver() {
-        String driverPath = this.driverPath.value();
-
-        Class<Driver> driverClass = new DcFacade(
-            this.driverClass,
-            new ClClasspath(
-                new GetExistingUrls(driverPath)
-            )
-        ).value();
-
+    public synchronized Driver driver() {
         // @see DriverManager.setLogStream(PrintStream)
         //TODO implement PrintStream to Logger bridge.
         // setLogStream should only be called once maybe in Main
-        return new DsCached(
-            driverPath,
-            driverClass,
-            new DsDriverClass(driverClass)
-        ).driver();
+        return this.origin.driver();
     }
 }

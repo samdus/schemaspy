@@ -14,7 +14,7 @@
                         <div class="col-md-12">
                             <div class="box box-solid">
                                 <div class="box-body">
-                                    <p>{{{description}}}</p>
+                                    <p>{{#markup}}{{{description}}}{{/markup}}</p>
                                 </div>
                             </div>
                         </div>
@@ -117,7 +117,7 @@
                             <span class="label label-primary pull-right"><i class="fa fa-cog fa-2x"></i></span>
                         </div><!-- /.box-header -->
                         <div class="box-body">
-                            <p> {{{catalog.comment}}} </p>
+                            <p> {{#markup}}{{{catalog.comment}}}{{/markup}} </p>
                         </div><!-- /.box-body -->
                     </div>
                     {{/catalog.comment}}
@@ -130,7 +130,7 @@
                             <span class="label label-primary pull-right"><i class="fa fa-cog fa-2x"></i></span>
                         </div><!-- /.box-header -->
                         <div class="box-body">
-                            <p> {{{schema.comment}}} </p>
+                            <p> {{#markup}}{{{schema.comment}}}{{/markup}} </p>
                         </div><!-- /.box-body -->
                     </div>
                     {{/schema.comment}}
@@ -172,7 +172,7 @@
                                         <td class="detail" align="right">{{table.numRows}}</td>
                                         {{/displayNumRows}}
                                         <td class="detail" align="right">{{table.type}}</td>
-                                        <td class="comment detail" style="display: table-cell;">{{{comments}}}</td>
+                                        <td class="comment detail" style="display: table-cell;">{{#markup}}{{{comments}}}{{/markup}}</td>
                                     </tr>
                                     {{/tables}}
                             </table>

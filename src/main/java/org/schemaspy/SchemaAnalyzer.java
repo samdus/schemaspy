@@ -26,21 +26,13 @@
 package org.schemaspy;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.invoke.MethodHandles;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,17 +41,17 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.schemaspy.analyzer.ImpliedConstraintsFinder;
 import org.schemaspy.cli.CommandLineArguments;
+import org.schemaspy.connection.SqlConnection;
 import org.schemaspy.input.dbms.CatalogResolver;
-import org.schemaspy.input.dbms.DbDriverLoader;
 import org.schemaspy.input.dbms.SchemaResolver;
 import org.schemaspy.input.dbms.service.DatabaseService;
 import org.schemaspy.input.dbms.service.DatabaseServiceFactory;
 import org.schemaspy.input.dbms.service.SqlService;
 import org.schemaspy.input.dbms.xml.SchemaMeta;
 import org.schemaspy.logging.Sanitize;
+import org.schemaspy.model.Catalog;
 import org.schemaspy.model.Console;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.DbmsMeta;
@@ -68,8 +60,10 @@ import org.schemaspy.model.ForeignKeyConstraint;
 import org.schemaspy.model.ImpliedForeignKeyConstraint;
 import org.schemaspy.model.ProgressListener;
 import org.schemaspy.model.Routine;
+import org.schemaspy.model.Schema;
 import org.schemaspy.model.Table;
 import org.schemaspy.model.Tracked;
+import org.schemaspy.output.InfoHtml;
 import org.schemaspy.output.OutputException;
 import org.schemaspy.output.OutputProducer;
 import org.schemaspy.output.diagram.Renderer;
@@ -89,10 +83,10 @@ import org.schemaspy.progress.ConditionalProgress;
 import org.schemaspy.progress.IfUpdateAfter;
 import org.schemaspy.util.DataTableConfig;
 import org.schemaspy.util.DefaultPrintWriter;
-import org.schemaspy.util.ManifestUtils;
-import org.schemaspy.util.Markdown;
 import org.schemaspy.util.copy.CopyFromUrl;
-import org.schemaspy.util.naming.FileNameGenerator;
+import org.schemaspy.util.filefilter.NotHtml;
+import org.schemaspy.util.naming.NameFromString;
+import org.schemaspy.util.naming.SanitizedFileName;
 import org.schemaspy.view.HtmlAnomaliesPage;
 import org.schemaspy.view.HtmlColumnsPage;
 import org.schemaspy.view.HtmlConstraintsPage;
@@ -104,9 +98,7 @@ import org.schemaspy.view.HtmlRoutinePage;
 import org.schemaspy.view.HtmlRoutinesPage;
 import org.schemaspy.view.HtmlTablePage;
 import org.schemaspy.view.HtmlTypesPage;
-import org.schemaspy.view.MustacheCatalog;
 import org.schemaspy.view.MustacheCompiler;
-import org.schemaspy.view.MustacheSchema;
 import org.schemaspy.view.MustacheTableDiagram;
 import org.schemaspy.view.SqlAnalyzer;
 import org.slf4j.Logger;
@@ -135,49 +127,55 @@ public class SchemaAnalyzer {
     private final OutputProducer outputProducer;
 
     private final LayoutFolder layoutFolder;
+    private final SqlConnection connection;
 
     public SchemaAnalyzer(
             final SqlService sqlService,
             final DatabaseServiceFactory databaseServiceFactory,
             final CommandLineArguments commandLineArguments,
             final OutputProducer outputProducer,
-            final LayoutFolder layoutFolder
+            final LayoutFolder layoutFolder,
+            final SqlConnection connection
     ) {
-        this.sqlService = Objects.requireNonNull(sqlService);
+        this.sqlService = sqlService;
         this.databaseServiceFactory = databaseServiceFactory;
-        this.commandLineArguments = Objects.requireNonNull(commandLineArguments);
+        this.commandLineArguments = commandLineArguments;
         this.outputProducer = outputProducer;
         this.layoutFolder = layoutFolder;
+        this.connection = connection;
     }
 
     public Database analyze() throws SQLException, IOException {
-
         if (commandLineArguments.isEvaluateAllEnabled() || !commandLineArguments.getSchemas().isEmpty()) {
             return this.analyzeMultipleSchemas(
-                    databaseServiceFactory.forMultipleSchemas(commandLineArguments.getProcessingConfig())
+                databaseServiceFactory.forMultipleSchemas(
+                    commandLineArguments.getProcessingConfig()
+                ),
+                connection
             );
         } else {
             File outputDirectory = commandLineArguments.getOutputDirectory();
             Objects.requireNonNull(outputDirectory);
             String schema = commandLineArguments.getSchema();
             return analyze(
-                    commandLineArguments.getConnectionConfig().getDatabaseName(),
-                    schema,
-                    false,
-                    outputDirectory,
-                    databaseServiceFactory.forSingleSchema(commandLineArguments.getProcessingConfig())
+                commandLineArguments.getConnectionConfig().getDatabaseName(),
+                schema,
+                false,
+                outputDirectory,
+                databaseServiceFactory.forSingleSchema(commandLineArguments.getProcessingConfig()),
+                connection
             );
         }
     }
 
     public Database analyzeMultipleSchemas(
-            DatabaseService databaseService
+            DatabaseService databaseService,
+            final SqlConnection con
     ) throws SQLException, IOException {
         List<String> schemas = commandLineArguments.getSchemas();
         Database db = null;
 
-        Connection connection = new DbDriverLoader(commandLineArguments.getConnectionConfig()).getConnection();
-        DatabaseMetaData meta = connection.getMetaData();
+        DatabaseMetaData meta = con.connection().getMetaData();
         if (schemas.isEmpty()) {
             String schemaSpec = commandLineArguments.getSchemaSpec();
             LOGGER.info(
@@ -204,8 +202,8 @@ public class SchemaAnalyzer {
 
         File outputDir = commandLineArguments.getOutputDirectory();
 
-        List<MustacheSchema> mustacheSchemas = new ArrayList<>();
-        MustacheCatalog mustacheCatalog = null;
+        List<Schema> collectedSchemas = new ArrayList<>();
+        Catalog collectedCatalog = null;
         for (String schema : schemas) {
             String dbName = Objects
                 .nonNull(
@@ -215,16 +213,17 @@ public class SchemaAnalyzer {
                 : schema;
 
             LOGGER.info("Analyzing '{}'", new Sanitize(schema));
-            File outputDirForSchema = new File(outputDir, new FileNameGenerator(schema).value());
-            db = this.analyze(dbName, schema, true, outputDirForSchema, databaseService);
-            if (db == null) //if any of analysed schema returns null
+            File outputDirForSchema = new File(outputDir, new SanitizedFileName(new NameFromString(schema)).value());
+            db = this.analyze(dbName, schema, true, outputDirForSchema, databaseService, con);
+            if (db == null) { //if any of analysed schema returns null
                 return null;
-            mustacheSchemas.add(new MustacheSchema(db.getSchema(), ""));
-            mustacheCatalog = new MustacheCatalog(db.getCatalog(), "");
+            }
+            collectedSchemas.add(db.getSchema());
+            collectedCatalog = db.getCatalog();
         }
 
         if (commandLineArguments.isHtmlEnabled()) {
-            new CopyFromUrl(layoutFolder.url(), outputDir, notHtml()).copy();
+            new CopyFromUrl(layoutFolder.url(), outputDir, new NotHtml()).copy();
 
             DataTableConfig dataTableConfig = new DataTableConfig(commandLineArguments);
             MustacheCompiler mustacheCompiler = new MustacheCompiler(commandLineArguments.getConnectionConfig().getDatabaseName(),
@@ -233,7 +232,7 @@ public class SchemaAnalyzer {
             HtmlMultipleSchemasIndexPage htmlMultipleSchemasIndexPage = new HtmlMultipleSchemasIndexPage(
                 mustacheCompiler);
             try (Writer writer = new DefaultPrintWriter(outputDir.toPath().resolve(INDEX_DOT_HTML).toFile())) {
-                htmlMultipleSchemasIndexPage.write(mustacheCatalog, mustacheSchemas,
+                htmlMultipleSchemasIndexPage.write(collectedCatalog, collectedSchemas,
                     commandLineArguments.getHtmlConfig().getDescription(), getDatabaseProduct(meta), writer
                 );
                 LOGGER.info(
@@ -260,11 +259,12 @@ public class SchemaAnalyzer {
     }
 
     public Database analyze(
-            String dbName,
-            String schema,
-            boolean isOneOfMultipleSchemas,
-            File outputDir,
-            DatabaseService databaseService
+        String dbName,
+        String schema,
+        boolean isOneOfMultipleSchemas,
+        File outputDir,
+        DatabaseService databaseService,
+        SqlConnection connection
     ) throws SQLException, IOException {
         LOGGER.info("Starting schema analysis");
         ProgressListener progressListener = new Console(outputDir, new Tracked());
@@ -273,7 +273,7 @@ public class SchemaAnalyzer {
 
         String catalog = commandLineArguments.getCatalog();
 
-        DatabaseMetaData databaseMetaData = sqlService.connect(commandLineArguments.getConnectionConfig());
+        DatabaseMetaData databaseMetaData = sqlService.connect(connection);
         DbmsMeta dbmsMeta = sqlService.getDbmsMeta();
         LOGGER.info("Connected to {} - {}", databaseMetaData.getDatabaseProductName(), databaseMetaData.getDatabaseProductVersion());
 
@@ -313,8 +313,9 @@ public class SchemaAnalyzer {
                 databaseMetaData,
                 !".*".equals(commandLineArguments.getProcessingConfig().getTableInclusions().toString())
             );
-            if (!isOneOfMultipleSchemas) // don't bail if we're doing the whole enchilada
+            if (!isOneOfMultipleSchemas) { // don't bail if we're doing the whole enchilada
                 throw new EmptySchemaException();
+            }
         }
 
         if (commandLineArguments.isHtmlEnabled()) {
@@ -363,19 +364,12 @@ public class SchemaAnalyzer {
         FileUtils.forceMkdir(new File(outputDir, "tables"));
         FileUtils.forceMkdir(new File(outputDir, "diagrams/summary"));
 
-        Markdown.registryPage(tables);
+        commandLineArguments.getHtmlConfig().registryPage(tables);
 
-        new CopyFromUrl(layoutFolder.url(), outputDir, notHtml()).copy();
+        new CopyFromUrl(layoutFolder.url(), outputDir, new NotHtml()).copy();
 
         Renderer renderer = useVizJS ? new VizJSDot() : new GraphvizDot(commandLineArguments.getGraphVizConfig());
-
-        Path htmlInfoFile = outputDir.toPath().resolve("info-html.txt");
-        Files.deleteIfExists(htmlInfoFile);
-        writeInfo("date", ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssZ")), htmlInfoFile);
-        writeInfo("os", System.getProperty("os.name") + " " + System.getProperty("os.version"), htmlInfoFile);
-        writeInfo("schemaspy-version", ManifestUtils.getImplementationVersion(), htmlInfoFile);
-        writeInfo("schemaspy-revision", ManifestUtils.getImplementationRevision(), htmlInfoFile);
-        writeInfo("renderer", renderer.identifier(), htmlInfoFile);
+        new InfoHtml(outputDir, renderer).write();
         progressListener.startCreatingSummaries();
 
         boolean hasRealConstraints = !db.getRemoteTables().isEmpty() || tables.stream().anyMatch(table -> !table.isOrphan(false));
@@ -511,7 +505,7 @@ public class SchemaAnalyzer {
                                 .toPath()
                                 .resolve("routines")
                                 .resolve(
-                                    new FileNameGenerator(routine.getName()).value()
+                                    new SanitizedFileName(new NameFromString(routine.getName())).value()
                                         + DOT_HTML
                                 )
                                 .toFile()
@@ -534,7 +528,7 @@ public class SchemaAnalyzer {
         // create detailed diagrams
 
         progressListener.startCreatingTablePages();
-        SqlAnalyzer sqlAnalyzer = new SqlAnalyzer(db.getDbmsMeta().getIdentifierQuoteString(), db.getDbmsMeta().getAllKeywords(), db.getTables(), db.getViews());
+        SqlAnalyzer sqlAnalyzer = new SqlAnalyzer(db.getDbmsMeta().getIdentifierQuoteString(), db.getDbmsMeta().reservedWords(), db.getTables(), db.getViews());
 
         File tablesDir = new File(diagramDir, "tables");
         tablesDir.mkdirs();
@@ -544,43 +538,13 @@ public class SchemaAnalyzer {
         for (Table table : tables) {
             List<MustacheTableDiagram> mustacheTableDiagrams = mustacheTableDiagramFactory.generateTableDiagrams(table);
             LOGGER.debug("Writing details of {}", table.getName());
-            try (Writer writer = new DefaultPrintWriter(outputDir.toPath().resolve("tables").resolve(new FileNameGenerator(table.getName()).value() + DOT_HTML).toFile())) {
+            try (Writer writer = new DefaultPrintWriter(outputDir.toPath().resolve("tables").resolve(new SanitizedFileName(new NameFromString(table.getName())).value() + DOT_HTML).toFile())) {
                 htmlTablePage.write(table, mustacheTableDiagrams, writer);
                 progressListener.createdTablePage(table);
             }
         }
         progressListener.finishedCreatingTablePages();
         LOGGER.info("View the results by opening {}", new File(outputDir, INDEX_DOT_HTML));
-    }
-
-    private FileFilter notHtml() {
-        return FileFilterUtils
-            .and(
-                FileFilterUtils
-                    .notFileFilter(
-                        FileFilterUtils.suffixFileFilter(DOT_HTML)
-                    )
-            );
-    }
-
-    private static void writeInfo(String key, String value, Path infoFile) {
-        try {
-            Files.write(
-                infoFile,
-                (key + "=" + value + "\n").getBytes(StandardCharsets.UTF_8),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND,
-                StandardOpenOption.WRITE)
-            ;
-        } catch (IOException e) {
-            LOGGER.error(
-                "Failed to write '{}', to '{}={}'",
-                new Sanitize(key),
-                new Sanitize(value),
-                infoFile,
-                e
-            );
-        }
     }
 
     /**

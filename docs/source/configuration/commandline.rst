@@ -49,11 +49,9 @@ Connecting
     In linux shells or git bash on windows the ``\`` also needs to be escaped so it should look like ``\\=``. |br|
     ConnectionProperties will always be populated with -u and -p if they exist.
 [-dp pathToDrivers]
-    Looks for drivers here before looking in driverPath in [databaseType].properties.
+    Where to search for jdbc drivers.
     The drivers are usually contained in .jar or .zip files and are typically provided by your database vendor.
     Multiple jars can be specified using os-specific path separator.
-[-loadjars]
-    Load siblings to jar specified in -dp, only works for single jar entry in -dp
 
 Processing
 ~~~~~~~~~~
@@ -64,7 +62,7 @@ Processing
 [-schemas listOfSchemas]
     List of schemas to analyze, separated by ``,``
 [-all]
-    Try to analyze all schemas in database, schemas can be excluded with ``-schemSpec`` which as defaults set by databaseType
+    Try to analyze all schemas in database, schemas can be excluded with ``-schemaSpec`` which as defaults set by databaseType
 [-schemaSpec schemaRegEx]
     Schemas to analyze, default to all, might be specified by databaseType.
 [-dbthreads number]
@@ -78,6 +76,8 @@ Processing
     Include table(s) in analysis, defaults to match everything
 [-I excludeTableRegex]
     Exclude table(s) from analysis, defaults to exclude tables containing ``$``, can be overridden with ``-I ""``
+[-\-include-routine-definition]
+    Include routine definition in output
 
 Additional data
 ~~~~~~~~~~~~~~~
@@ -91,7 +91,7 @@ Html report related
     Skip generation of html report.
 [-noimplied]
     Don't look for implied relationships.
-[--no-orphans]
+[-\-no-orphans]
     Don't include orphan tables in the relationships graph.
 [-nopages]
     Just list data as one long list instead of pages.
@@ -106,6 +106,8 @@ Html report related
     Use a custom stylesheet. Bundled stylesheet can be extracted from jar(using zip capable tool), path '/layout/schemaSpy.css'
 [-desc description]
     Add a description to the index page.
+[-asciidoc]
+    Uses asciidoc rather than markdown when processing descriptions
 
 DataTables related
 ------------------

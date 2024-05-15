@@ -24,8 +24,12 @@
  */
 package org.schemaspy;
 
+import java.util.stream.StreamSupport;
 import org.schemaspy.model.*;
+import org.schemaspy.util.Filtered;
 import org.schemaspy.util.Inflection;
+import org.schemaspy.util.WhenFalse;
+import org.schemaspy.util.WhenIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -267,9 +271,9 @@ public class DbAnalyzer {
      * @param schemaSpec filter for schema/catalog
      */
     public static List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec) throws SQLException {
-        List<String> populatedSchemas = getPopulatedSchemas(meta, schemaSpec, false);
+        List<String> populatedSchemas = getPopulatedSchemas(meta, schemaSpec, getSchemas(meta));
         if (populatedSchemas.isEmpty()) {
-            return getPopulatedSchemas(meta, schemaSpec, true);
+            return getPopulatedSchemas(meta, schemaSpec, getCatalogs(meta));
         }
         return populatedSchemas;
     }
@@ -280,21 +284,46 @@ public class DbAnalyzer {
      *
      * @param meta DatabaseMetaData
      * @param schemaSpec filter for catalog or schema
-     * @param isCatalog look in catalogs or schemas
+     * @param candidates schemas to consider
      */
-    public static List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec, boolean isCatalog) throws SQLException {
-        Set<String> schemas = new TreeSet<>(); // alpha sorted
+    public static List<String> getPopulatedSchemas(
+        DatabaseMetaData meta,
+        String schemaSpec,
+        final List<String> candidates
+    ) {
         Pattern schemaRegex = Pattern.compile(schemaSpec);
 
-        for (String schema : (isCatalog ? getCatalogs(meta) : getSchemas(meta))) {
-            if (schemaRegex.matcher(schema).matches()) {
-                schemas.add(schema);
-            } else {
-                LOGGER.debug("Excluding schema {}: doesn't match '{}'", schema, schemaRegex);
-            }
-        }
+        final Iterable<String> matched = new Filtered<>(
+            candidates,
+            new WhenFalse<>(
+                schema -> schemaRegex.matcher(schema).matches(),
+                schema -> LOGGER.debug("Excluding schema {}: doesn't match '{}'", schema, schemaRegex)
+            )
+        );
 
-        return new ArrayList<>(schemas);
+        final Iterable<String> populated = new Filtered<>(
+            matched,
+            new WhenIf<>(
+                schema -> hasTables(meta, schema),
+                schema -> LOGGER.debug("Including schema {}: matches + \"{}\" and contains tables", schema, schemaRegex),
+                schema -> LOGGER.debug("Excluding schema {}: matches \"{}\" but contains no tables", schema, schemaRegex)
+            )
+        );
+
+        return StreamSupport.stream(populated.spliterator(), false)
+            .distinct()
+            .sorted()
+            .toList();
     }
 
+    public static boolean hasTables(
+        final DatabaseMetaData meta,
+        final String schema
+    ) {
+        try(final ResultSet rs = meta.getTables(null, schema, "%", null)) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
 }

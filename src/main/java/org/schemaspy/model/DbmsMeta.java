@@ -20,6 +20,7 @@ package org.schemaspy.model;
 
 import java.util.HashSet;
 import java.util.Set;
+import org.schemaspy.input.dbms.service.keywords.Keywords;
 
 /**
  * @author Nils Petzaell
@@ -69,7 +70,11 @@ public class DbmsMeta {
         return timeDateFunctions;
     }
 
-    public Set<String> getAllKeywords() {
+    /**
+     * Lists all identifiers used by the DBMS.
+     * @return The set of all keywords and built-in functions.
+     */
+    public Set<String> reservedWords() {
         Set<String> keywords = new HashSet<>();
         keywords.addAll(getSQLKeywords());
         keywords.addAll(getNumericFunctions());
@@ -97,8 +102,8 @@ public class DbmsMeta {
             return this;
         }
 
-        public Builder sqlKeywords(Set<String> sqlKeywords) {
-            dbmsMeta.sqlKeywords = sqlKeywords;
+        public Builder sqlKeywords(final Keywords sqlKeywords) {
+            dbmsMeta.sqlKeywords = sqlKeywords.value();
             return this;
         }
 

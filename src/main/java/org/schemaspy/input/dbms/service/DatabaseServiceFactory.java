@@ -55,7 +55,10 @@ public class DatabaseServiceFactory {
                                 processingConfig.getColumnExclusions()
                         )
                 ),
-                new RoutineService(sqlService, processingConfig.getDatabaseTypeProperties()),
+                new RoutineService(
+                    sqlService,
+                    processingConfig.getDatabaseTypeProperties(),
+                    processingConfig.includeRoutineDefinition()),
                 new TypeService(sqlService, processingConfig.getDatabaseTypeProperties()),
                 new SequenceService(sqlService, processingConfig.getDatabaseTypeProperties())
         );
