@@ -75,11 +75,8 @@ public class DbAnalyzer {
         // match Rails naming conventions
         for (Table table : tables.values()) {
             for (TableColumn column : table.getColumns()) {
-                String columnName = column.getName().toLowerCase();
-                if (!column.isForeignKey() && column.allowsImpliedParents() && columnName.endsWith("_id")) {
-                    String singular = columnName.substring(0, columnName.length() - "_id".length());
-                    String primaryTableName = Inflection.pluralize(singular);
-                    Table primaryTable = tables.get(primaryTableName);
+                if (!column.isForeignKey() && column.allowsImpliedParents()) {
+                    Table primaryTable = railsPrimaryTable(column, tables);
                     if (primaryTable != null) {
                         TableColumn primaryColumn = primaryTable.getColumn("ID");
                         if (primaryColumn != null) {
@@ -91,6 +88,17 @@ public class DbAnalyzer {
         }
 
         return railsConstraints;
+    }
+
+    private static Table railsPrimaryTable(final TableColumn column, final Map<String, Table> tables) {
+        Table primaryTable = null;
+        String columnName = column.getName().toLowerCase();
+        if (columnName.endsWith("_id")) {
+            String singular = columnName.substring(0, columnName.length() - "_id".length());
+            String primaryTableName = Inflection.pluralize(singular);
+            primaryTable = tables.get(primaryTableName);
+        }
+        return primaryTable;
     }
 
     /**
@@ -135,14 +143,7 @@ public class DbAnalyzer {
                 // and end in an incrementing number
 
                 String columnName = column.getName();
-                String numbers = null;
-                for (int i = columnName.length() - 1; i > 0; --i) {
-                    if (Character.isDigit(columnName.charAt(i))) {
-                        numbers = String.valueOf(columnName.charAt(i)) + (numbers == null ? "" : numbers);
-                    } else {
-                        break;
-                    }
-                }
+                String numbers = trailingDigits(columnName);
 
                 // attempt to detect where they had an existing column
                 // and added a "column2" type of column (we'll call this one "1")
@@ -166,6 +167,18 @@ public class DbAnalyzer {
         }
 
         return sortTablesByName(denormalizedTables);
+    }
+
+    private static String trailingDigits(final String columnName) {
+        String numbers = null;
+        for (int i = columnName.length() - 1; i > 0; --i) {
+            if (Character.isDigit(columnName.charAt(i))) {
+                numbers = String.valueOf(columnName.charAt(i)) + (numbers == null ? "" : numbers);
+            } else {
+                break;
+            }
+        }
+        return numbers;
     }
 
     public static List<Table> getTablesWithOneColumn(Collection<Table> tables) {
