@@ -27,9 +27,10 @@ package org.schemaspy;
 import java.util.stream.StreamSupport;
 import org.schemaspy.model.*;
 import org.schemaspy.util.Filtered;
-import org.schemaspy.util.Inflection;
 import org.schemaspy.util.WhenFalse;
 import org.schemaspy.util.WhenIf;
+import org.schemaspy.util.naming.Name;
+import org.schemaspy.util.rails.NmPrimaryTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,12 +77,10 @@ public class DbAnalyzer {
         for (Table table : tables.values()) {
             for (TableColumn column : table.getColumns()) {
                 if (!column.isForeignKey() && column.allowsImpliedParents()) {
-                    Table primaryTable = railsPrimaryTable(column, tables);
-                    if (primaryTable != null) {
-                        TableColumn primaryColumn = primaryTable.getColumn("ID");
-                        if (primaryColumn != null) {
-                            railsConstraints.add(new RailsForeignKeyConstraint(primaryColumn, column));
-                        }
+                    final Name primaryTable = new NmPrimaryTable(column.getName());
+                    TableColumn primaryColumn = railsPrimaryColumn(primaryTable, tables);
+                    if (primaryColumn != null) {
+                        railsConstraints.add(new RailsForeignKeyConstraint(primaryColumn, column));
                     }
                 }
             }
@@ -90,12 +89,18 @@ public class DbAnalyzer {
         return railsConstraints;
     }
 
-    private static Table railsPrimaryTable(final TableColumn column, final Map<String, Table> tables) {
+    private static TableColumn railsPrimaryColumn(final Name name, final Map<String, Table> tables) {
+        final Table primaryTable = railsPrimaryTable(name, tables);
+        if (primaryTable != null) {
+            return primaryTable.getColumn("ID");
+        }
+        return null;
+    }
+
+    private static Table railsPrimaryTable(final Name name, final Map<String, Table> tables) {
         Table primaryTable = null;
-        String columnName = column.getName().toLowerCase();
-        if (columnName.endsWith("_id")) {
-            String singular = columnName.substring(0, columnName.length() - "_id".length());
-            String primaryTableName = Inflection.pluralize(singular);
+        String primaryTableName = name.value();
+        if (!primaryTableName.isEmpty()) {
             primaryTable = tables.get(primaryTableName);
         }
         return primaryTable;
