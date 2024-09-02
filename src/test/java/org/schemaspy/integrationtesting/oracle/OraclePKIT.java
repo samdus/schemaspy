@@ -29,9 +29,7 @@ import org.schemaspy.model.Table;
 import org.schemaspy.model.TableIndex;
 import org.schemaspy.testing.testcontainers.SuiteContainerExtension;
 
-import javax.script.ScriptException;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
@@ -53,7 +51,7 @@ class OraclePKIT {
     static SuiteContainerExtension container = OracleSuite.SUITE_CONTAINER;
 
     @BeforeAll
-    static void gatheringSchemaDetailsTest() throws SQLException, IOException, ScriptException, URISyntaxException {
+    static void gatheringSchemaDetailsTest() throws SQLException, IOException {
         String[] args = {
                 "-t", "orathin",
                 "-db", "xe",

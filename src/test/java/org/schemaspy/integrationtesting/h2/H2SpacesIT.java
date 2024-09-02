@@ -25,9 +25,7 @@ import org.schemaspy.model.Database;
 import org.schemaspy.model.Table;
 import org.schemaspy.testing.H2MemoryExtension;
 
-import javax.script.ScriptException;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.sql.SQLException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +43,7 @@ class H2SpacesIT {
     private static Database database;
 
     @BeforeAll
-    static void createDatabaseRepresentation() throws SQLException, IOException, ScriptException, URISyntaxException {
+    static void createDatabaseRepresentation() throws SQLException, IOException {
         String[] args = {
                 "-t", "src/test/resources/integrationTesting/dbTypes/h2memory",
                 "-db", "h2 spaces",

@@ -31,7 +31,6 @@ import org.xmlunit.diff.Diff;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -42,7 +41,7 @@ class XmlIndexFormatterTest {
     private final XmlIndexFormatter xmlIndexFormatter = new XmlIndexFormatter();
 
     @Test
-    void appendIndex() throws ParserConfigurationException, TransformerException {
+    void appendIndex() throws ParserConfigurationException {
 
         String expecting = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><table>\n" +
                 "   <index name=\"test\" unique=\"false\">\n" +

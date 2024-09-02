@@ -25,9 +25,7 @@ import org.schemaspy.integrationtesting.MysqlSuite;
 import org.schemaspy.model.*;
 import org.schemaspy.testing.testcontainers.SuiteContainerExtension;
 
-import javax.script.ScriptException;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
@@ -48,7 +46,7 @@ class MysqlSpacesNoDotsIT {
     static SuiteContainerExtension container = MysqlSuite.SUITE_CONTAINER;
 
     @BeforeAll
-    static void createDatabaseRepresentation() throws SQLException, IOException, ScriptException, URISyntaxException {
+    static void createDatabaseRepresentation() throws SQLException, IOException {
         String[] args = {
                 "-t", "mysql",
                 "-db", "TEST 1",

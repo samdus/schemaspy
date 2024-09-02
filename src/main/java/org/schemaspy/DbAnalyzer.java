@@ -29,7 +29,6 @@ import org.schemaspy.model.*;
 import org.schemaspy.util.Filtered;
 import org.schemaspy.util.WhenFalse;
 import org.schemaspy.util.WhenIf;
-import org.schemaspy.util.naming.Name;
 import org.schemaspy.util.rails.NmPrimaryTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,8 +76,10 @@ public class DbAnalyzer {
         for (Table table : tables.values()) {
             for (TableColumn column : table.getColumns()) {
                 if (!column.isForeignKey() && column.allowsImpliedParents()) {
-                    final Name primaryTable = new NmPrimaryTable(column.getName());
-                    TableColumn primaryColumn = railsPrimaryColumn(primaryTable, tables);
+                    TableColumn primaryColumn = new PrimaryTableColumn(
+                        new TablesMap(tables),
+                        new NmPrimaryTable(column.getName())
+                    ).column();
                     if (primaryColumn != null) {
                         railsConstraints.add(new RailsForeignKeyConstraint(primaryColumn, column));
                     }
@@ -87,23 +88,6 @@ public class DbAnalyzer {
         }
 
         return railsConstraints;
-    }
-
-    private static TableColumn railsPrimaryColumn(final Name name, final Map<String, Table> tables) {
-        final Table primaryTable = railsPrimaryTable(name, tables);
-        if (primaryTable != null) {
-            return primaryTable.getColumn("ID");
-        }
-        return null;
-    }
-
-    private static Table railsPrimaryTable(final Name name, final Map<String, Table> tables) {
-        Table primaryTable = null;
-        String primaryTableName = name.value();
-        if (!primaryTableName.isEmpty()) {
-            primaryTable = tables.get(primaryTableName);
-        }
-        return primaryTable;
     }
 
     /**
@@ -130,8 +114,9 @@ public class DbAnalyzer {
         List<Table> withoutIndexes = new ArrayList<>();
 
         for (Table table : tables) {
-            if (table.getIndexes().isEmpty() && !table.isView() && !table.isLogical())
+            if (table.getIndexes().isEmpty() && !table.isView() && !table.isLogical()) {
                 withoutIndexes.add(table);
+            }
         }
 
         return sortTablesByName(withoutIndexes);
@@ -190,8 +175,9 @@ public class DbAnalyzer {
         List<Table> singleColumnTables = new ArrayList<>();
 
         for (Table table : tables) {
-            if (table.getColumns().size() == 1)
+            if (table.getColumns().size() == 1) {
                 singleColumnTables.add(table);
+            }
         }
 
         return sortTablesByName(singleColumnTables);
@@ -206,8 +192,9 @@ public class DbAnalyzer {
     public static List<TableColumn> sortColumnsByTable(List<TableColumn> columns) {
         columns.sort((column1, column2) -> {
             int rc = column1.getTable().compareTo(column2.getTable());
-            if (rc == 0)
+            if (rc == 0) {
                 rc = column1.getName().compareToIgnoreCase(column2.getName());
+            }
             return rc;
         });
 
