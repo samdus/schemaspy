@@ -18,21 +18,21 @@
  */
 package org.schemaspy.util;
 
+import java.util.Properties;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.schemaspy.testing.RecordingLogger;
 
-import java.util.Properties;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class DbSpecificConfigTest {
+class DbSpecificConfigTest {
 
-    private static Properties withoutHostAndOptionalPort = new Properties();
-    private static Properties withHostAndOptionalPort = new Properties();
+    private static final Properties withoutHostAndOptionalPort = new Properties();
+    private static final Properties withHostAndOptionalPort = new Properties();
 
     @BeforeAll
-    public static void setupProperties() {
+    static void setupProperties() {
         withoutHostAndOptionalPort.setProperty("description","MySQL");
         withoutHostAndOptionalPort.setProperty("connectionSpec","jdbc:mysql://<host>/<db>?socketFactory=<socketFactory>&socket=<socket>");
         withoutHostAndOptionalPort.setProperty("host","host where database resides with optional port");
@@ -49,7 +49,7 @@ public class DbSpecificConfigTest {
     }
 
     @Test
-    public void worksWithoutHostAndOptionalPort() {
+    void worksWithoutHostAndOptionalPort() {
         DbSpecificConfig dbSpecificConfig = new DbSpecificConfig("withoutHostAndOptionalPort", withoutHostAndOptionalPort);
         assertThat(dbSpecificConfig.getOptions()).usingElementComparatorOnFields("name", "description").containsExactly(
                 new DbSpecificOption("host", "host where database resides with optional port"),
@@ -60,17 +60,17 @@ public class DbSpecificConfigTest {
     }
 
     @Test
-    public void dumpUsageWithoutHostAndOptionalPort() {
+    void dumpUsageWithoutHostAndOptionalPort() {
         RecordingLogger recordingLogger = new RecordingLogger();
         new DbSpecificConfig(
                 "withoutHostAndOptionalPort",
                 withoutHostAndOptionalPort
         ).dumpUsage(recordingLogger);
-        assertThat(recordingLogger.toString()).isEqualTo("   MySQL (-t withoutHostAndOptionalPort)      -host   \t\thost where database resides with optional port      -db   \t\tdatabase name      -socketFactory   \t\tClassName of socket factory which must be in your classpath      -socket   \t\tPath To Socket");
+        assertThat(recordingLogger.toString()).isEqualTo("   MySQL (-t withoutHostAndOptionalPort)\n      -host   \t\thost where database resides with optional port\n      -db   \t\tdatabase name\n      -socketFactory   \t\tClassName of socket factory which must be in your classpath\n      -socket   \t\tPath To Socket");
     }
 
     @Test
-    public void worksWithHostAndOptionalPort() {
+    void worksWithHostAndOptionalPort() {
         DbSpecificConfig dbSpecificConfig = new DbSpecificConfig("withHostAndOptionalPort", withHostAndOptionalPort);
         assertThat(dbSpecificConfig.getOptions()).usingElementComparatorOnFields("name", "description").containsExactly(
                 new DbSpecificOption("hostOptionalPort", null),
@@ -79,13 +79,13 @@ public class DbSpecificConfigTest {
     }
 
     @Test
-    public void dumpUsageWithHostAndOptionalPort(){
+    void dumpUsageWithHostAndOptionalPort(){
         RecordingLogger recordingLogger = new RecordingLogger();
         new DbSpecificConfig(
                 "withHostAndOptionalPort",
                 withHostAndOptionalPort
         ).dumpUsage(recordingLogger);
-        assertThat(recordingLogger.toString()).isEqualTo("   MySQL (-t withHostAndOptionalPort)      -host   \t\thost of database, may contain port      -port   \t\toptional port if not default      -db   \t\tdatabase name");
+        assertThat(recordingLogger.toString()).isEqualTo("   MySQL (-t withHostAndOptionalPort)\n      -host   \t\thost of database, may contain port\n      -port   \t\toptional port if not default\n      -db   \t\tdatabase name");
     }
 
 }

@@ -27,7 +27,6 @@ import org.schemaspy.DbAnalyzer;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.ForeignKeyConstraint;
 import org.schemaspy.model.Table;
-import org.schemaspy.util.Markdown;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +66,7 @@ public class HtmlMainIndexPage {
 
         for(Table table: tables) {
             columnsAmount += table.getColumns().size();
-            String comments = new Markdown(table.getComments(), "").toHtml();
+            String comments = table.getComments();
             MustacheTable mustacheTable = new MustacheTable(table, "");
             mustacheTable.setComments(comments);
             mustacheTables.add(mustacheTable);
@@ -90,9 +89,9 @@ public class HtmlMainIndexPage {
                 .addToScope("anomaliesAmount", anomaliesAmount)
                 .addToScope("tables", mustacheTables)
                 .addToScope("database", database)
-                .addToScope("description", new Markdown(description, "").toHtml())
-                .addToScope("schema", new MustacheSchema(database.getSchema(), ""))
-                .addToScope("catalog", new MustacheCatalog(database.getCatalog(), ""))
+                .addToScope("description", description)
+                .addToScope("schema", database.getSchema())
+                .addToScope("catalog", database.getCatalog())
                 .addToScope("xmlName", getXmlName(database))
                 .depth(0)
                 .getPageData();
@@ -116,17 +115,12 @@ public class HtmlMainIndexPage {
     }
 
     private static String getXmlName(Database db) {
-        StringBuilder description = new StringBuilder();
-
-        description.append(db.getName());
         if (db.getSchema() != null) {
-            description.append('.');
-            description.append(db.getSchema().getName());
+            return db.getName() + "." + db.getSchema().getName();
         } else if (db.getCatalog() != null) {
-            description.append('.');
-            description.append(db.getCatalog().getName());
+            return db.getName() + "." + db.getCatalog().getName();
+        } else {
+            return db.getName();
         }
-
-        return description.toString();
     }
 }

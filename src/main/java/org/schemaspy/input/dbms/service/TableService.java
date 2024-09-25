@@ -174,8 +174,9 @@ public class TableService {
         } catch (SQLException sqlExc) {
             if (!remoteTable.isLogical()) {
                 // if explicitly asking for these details then propagate the exception
-                if (multiSchemas)
+                if (multiSchemas) {
                     throw sqlExc;
+                }
 
                 // otherwise just report the fact that we tried & couldn't
                 LOGGER.warn("Couldn't resolve foreign keys for remote table '{}'", remoteTable.getFullName(), sqlExc);
@@ -262,8 +263,9 @@ public class TableService {
      * @return int
      */
     protected long fetchNumRows(Database db, Table table) {
-        if (table.isView() || table.isRemote())
+        if (table.isView() || table.isRemote()) {
             return -1;
+        }
 
         SQLException originalFailure = null;
 
@@ -289,8 +291,9 @@ public class TableService {
                 return fetchNumRows(db, table, "count(1)", false);
             } catch (SQLException try3Exception) {
                 if (!table.isLogical()) {
-                    if (originalFailure != null)
+                    if (originalFailure != null) {
                         LOGGER.warn("Failed to fetch number of rows for '{}' using custom query: '{}'", table.getFullName(), sql, originalFailure);
+                    }
                     LOGGER.warn("Failed to fetch number of rows for '{}' using built-in query with 'count(*)'", table.getFullName(), try2Exception);
                     LOGGER.warn("Failed to fetch number of rows for '{}' using built-in query with 'count(1)'", table.getFullName(), try3Exception);
                 }
@@ -330,8 +333,9 @@ public class TableService {
             }
             return -1;
         } catch (SQLException exc) {
-            if (forceQuotes) // we tried with and w/o quotes...fail this attempt
+            if (forceQuotes) {// we tried with and w/o quotes...fail this attempt
                 throw exc;
+            }
 
             return fetchNumRows(db, table, clause, true);
         }
@@ -355,9 +359,9 @@ public class TableService {
         if (remoteTable == null) {
             LOGGER.debug("Creating remote table {}", fullName);
 
-            if (logical)
+            if (logical) {
                 remoteTable = new LogicalRemoteTable(db, remoteTableIdentifier, baseContainer);
-            else {
+            } else {
                 remoteTable = new RemoteTable(db, remoteTableIdentifier, baseContainer);
                 columnService.gatherColumns(remoteTable);
             }
@@ -385,55 +389,71 @@ public class TableService {
             if (col != null) {
                 // go thru the new foreign key defs and associate them with our columns
                 for (ForeignKeyMeta fk : colMeta.getForeignKeys()) {
-                    Table parent;
-
-                    if (fk.getRemoteCatalog() != null || fk.getRemoteSchema() != null) {
-                        try {
-                            // adds if doesn't exist
-                            parent = addLogicalRemoteTable(db, RemoteTableIdentifier.from(fk), table.getContainer());
-                            addColumnIfMissing(parent, fk.getColumnName());
-                        } catch (SQLException exc) {
-                            parent = null;
-                            LOGGER.debug("Failed to addRemoteTable '{}.{}.{}'", fk.getRemoteCatalog(), fk.getRemoteSchema(), fk.getTableName(), exc);
-                        }
-                    } else {
-                        parent = tables.get(fk.getTableName());
-                    }
-
+                    Table parent = parentOf(fk, db, table, tables);
                     if (parent != null) {
-                        TableColumn parentColumn = parent.getColumn(fk.getColumnName());
-
-                        if (parentColumn == null) {
-                            LOGGER.warn("Undefined column '{}.{}' referenced by '{}.{}' in XML metadata", parent.getName(), fk.getColumnName(), col.getTable(), col);
-                        } else {
-                            /**
-                             * Merely instantiating a foreign key constraint ties it
-                             * into its parent and child columns (& therefore their tables)
-                             */
-                            /* TODO: This sort of code suggest that too much is happening in the constructor.
-                             * Should either be a factory or constructed by a method of the holding object.
-                             * Or operations preformed in the constructor should be exposed.
-                             */
-                            @SuppressWarnings("unused")
-                            ForeignKeyConstraint unused = new ForeignKeyConstraint(parentColumn, col) {
-                                @Override
-                                public String getName() {
-                                    return "Defined in XML";
-                                }
-                            };
-
-                            // they forgot to say it was a primary key
-                            if (!parentColumn.isPrimary()) {
-                                LOGGER.warn("Assuming '{}.{}' is a primary key due to being referenced by '{}.{}'", parentColumn.getTable(), parentColumn, col.getTable(), col);
-                                parent.setPrimaryColumn(parentColumn);
-                            }
-                        }
+                        glueToParent(parent, fk, col);
                     } else {
                         LOGGER.warn("Undefined table '{}' referenced by '{}.{}' in XML metadata", fk.getTableName(), table.getName(), col.getName());
                     }
                 }
             } else {
                 LOGGER.warn("Undefined column '{}.{}' in XML metadata", table.getName(), colMeta.getName());
+            }
+        }
+    }
+
+    private Table parentOf(
+        final ForeignKeyMeta fk,
+        final Database db,
+        final Table table,
+        final Map<String, Table> tables
+    ) {
+        Table parent;
+        if (fk.getRemoteCatalog() != null || fk.getRemoteSchema() != null) {
+            try {
+                // adds if doesn't exist
+                parent = addLogicalRemoteTable(db, RemoteTableIdentifier.from(fk), table.getContainer());
+                addColumnIfMissing(parent, fk.getColumnName());
+            } catch (SQLException exc) {
+                parent = null;
+                LOGGER.debug("Failed to addRemoteTable '{}.{}.{}'", fk.getRemoteCatalog(), fk.getRemoteSchema(), fk.getTableName(), exc);
+            }
+        } else {
+            parent = tables.get(fk.getTableName());
+        }
+        return parent;
+    }
+
+    private void glueToParent(
+        final Table parent,
+        final ForeignKeyMeta fk,
+        final TableColumn col
+    ) {
+        TableColumn parentColumn = parent.getColumn(fk.getColumnName());
+
+        if (parentColumn == null) {
+            LOGGER.warn("Undefined column '{}.{}' referenced by '{}.{}' in XML metadata", parent.getName(), fk.getColumnName(), col.getTable(), col);
+        } else {
+            /**
+             * Merely instantiating a foreign key constraint ties it
+             * into its parent and child columns (& therefore their tables)
+             */
+            /* TODO: This sort of code suggest that too much is happening in the constructor.
+             * Should either be a factory or constructed by a method of the holding object.
+             * Or operations preformed in the constructor should be exposed.
+             */
+            @SuppressWarnings("unused")
+            ForeignKeyConstraint unused = new ForeignKeyConstraint(parentColumn, col) {
+                @Override
+                public String getName() {
+                    return "Defined in XML";
+                }
+            };
+
+            // they forgot to say it was a primary key
+            if (!parentColumn.isPrimary()) {
+                LOGGER.warn("Assuming '{}.{}' is a primary key due to being referenced by '{}.{}'", parentColumn.getTable(), parentColumn, col.getTable(), col);
+                parent.setPrimaryColumn(parentColumn);
             }
         }
     }
@@ -456,8 +476,9 @@ public class TableService {
                 while (rs.next()) {
                     String tableName = rs.getString(TABLE_NAME);
                     Table table = db.getLocals().get(tableName);
-                    if (table != null)
+                    if (table != null) {
                         table.setId(rs.getObject("table_id"));
+                    }
                 }
             } catch (SQLException sqlException) {
                 LOGGER.warn("Failed to fetch table ids using SQL '{}'", sql, sqlException);
@@ -480,8 +501,9 @@ public class TableService {
                 while (rs.next()) {
                     String tableName = rs.getString(TABLE_NAME);
                     Table table = db.getLocals().get(tableName);
-                    if (table != null)
+                    if (table != null) {
                         table.setComments(rs.getString("comments"));
+                    }
                 }
             } catch (SQLException sqlException) {
                 // don't die just because this failed
@@ -507,8 +529,9 @@ public class TableService {
                     Table table = db.getLocals().get(tableName);
                     if (table != null) {
                         TableColumn column = table.getColumn(rs.getString(COLUMN_NAME));
-                        if (column != null)
+                        if (column != null) {
                             column.setComments(rs.getString(COMMENTS));
+                        }
                     }
                 }
             } catch (SQLException sqlException) {

@@ -1,9 +1,18 @@
 package org.schemaspy.view;
 
+import java.util.Collection;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import org.schemaspy.cli.NoRowsConfigCli;
 import org.schemaspy.cli.TemplateDirectoryConfigCli;
+import org.schemaspy.model.Table;
+import org.schemaspy.util.markup.Asciidoc;
+import org.schemaspy.util.markup.Markdown;
+import org.schemaspy.util.markup.Markup;
+import org.schemaspy.util.markup.MarkupFromString;
+import org.schemaspy.util.markup.PageRegistry;
+import org.schemaspy.util.markup.WithReferenceLinks;
 
 @Parameters(resourceBundle = "htmlconfigcli")
 public class HtmlConfigCli implements HtmlConfig {
@@ -26,8 +35,19 @@ public class HtmlConfigCli implements HtmlConfig {
     )
     private boolean noPages = false;
 
-    private NoRowsConfigCli noRowsConfigCli;
-    private TemplateDirectoryConfigCli templateDirectoryConfigCli;
+    @Parameter(
+        names = {
+            "-asciidoc", "--asciidoc",
+            "schemaspy.asciidoc"
+        },
+        descriptionKey = "asciidoc"
+    )
+    private boolean useAsciiDoc = false;
+
+    private final NoRowsConfigCli noRowsConfigCli;
+    private final TemplateDirectoryConfigCli templateDirectoryConfigCli;
+
+    private final PageRegistry pageRegistry = new PageRegistry();
 
     public HtmlConfigCli(
         NoRowsConfigCli noRowsConfigCli,
@@ -55,5 +75,33 @@ public class HtmlConfigCli implements HtmlConfig {
     @Override
     public boolean isNumRowsEnabled() {
         return noRowsConfigCli.isNumRowsEnabled();
+    }
+
+    @Override
+    public void registryPage(final Collection<Table> tables) {
+        pageRegistry.register(tables);
+    }
+
+    @Override
+    public Markup markupProcessor(final String markupText, final String rootPath) {
+        if (useAsciiDoc) {
+            return new Asciidoc(
+                new WithReferenceLinks(
+                    new MarkupFromString(markupText),
+                    pageRegistry,
+                    rootPath,
+                    Asciidoc.LINK_FORMAT
+                )
+            );
+        } else {
+            return new Markdown(
+                new WithReferenceLinks(
+                    new MarkupFromString(markupText),
+                    pageRegistry,
+                    rootPath,
+                    Markdown.LINK_FORMAT
+                )
+            );
+        }
     }
 }

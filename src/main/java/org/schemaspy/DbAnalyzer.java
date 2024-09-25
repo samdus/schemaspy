@@ -24,8 +24,12 @@
  */
 package org.schemaspy;
 
+import java.util.stream.StreamSupport;
 import org.schemaspy.model.*;
-import org.schemaspy.util.Inflection;
+import org.schemaspy.util.Filtered;
+import org.schemaspy.util.WhenFalse;
+import org.schemaspy.util.WhenIf;
+import org.schemaspy.util.rails.NmPrimaryTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,16 +75,13 @@ public class DbAnalyzer {
         // match Rails naming conventions
         for (Table table : tables.values()) {
             for (TableColumn column : table.getColumns()) {
-                String columnName = column.getName().toLowerCase();
-                if (!column.isForeignKey() && column.allowsImpliedParents() && columnName.endsWith("_id")) {
-                    String singular = columnName.substring(0, columnName.length() - "_id".length());
-                    String primaryTableName = Inflection.pluralize(singular);
-                    Table primaryTable = tables.get(primaryTableName);
-                    if (primaryTable != null) {
-                        TableColumn primaryColumn = primaryTable.getColumn("ID");
-                        if (primaryColumn != null) {
-                            railsConstraints.add(new RailsForeignKeyConstraint(primaryColumn, column));
-                        }
+                if (!column.isForeignKey() && column.allowsImpliedParents()) {
+                    TableColumn primaryColumn = new PrimaryTableColumn(
+                        new TablesMap(tables),
+                        new NmPrimaryTable(column.getName())
+                    ).column();
+                    if (primaryColumn != null) {
+                        railsConstraints.add(new RailsForeignKeyConstraint(primaryColumn, column));
                     }
                 }
             }
@@ -113,8 +114,9 @@ public class DbAnalyzer {
         List<Table> withoutIndexes = new ArrayList<>();
 
         for (Table table : tables) {
-            if (table.getIndexes().isEmpty() && !table.isView() && !table.isLogical())
+            if (table.getIndexes().isEmpty() && !table.isView() && !table.isLogical()) {
                 withoutIndexes.add(table);
+            }
         }
 
         return sortTablesByName(withoutIndexes);
@@ -131,14 +133,7 @@ public class DbAnalyzer {
                 // and end in an incrementing number
 
                 String columnName = column.getName();
-                String numbers = null;
-                for (int i = columnName.length() - 1; i > 0; --i) {
-                    if (Character.isDigit(columnName.charAt(i))) {
-                        numbers = String.valueOf(columnName.charAt(i)) + (numbers == null ? "" : numbers);
-                    } else {
-                        break;
-                    }
-                }
+                String numbers = trailingDigits(columnName);
 
                 // attempt to detect where they had an existing column
                 // and added a "column2" type of column (we'll call this one "1")
@@ -164,12 +159,25 @@ public class DbAnalyzer {
         return sortTablesByName(denormalizedTables);
     }
 
+    private static String trailingDigits(final String columnName) {
+        String numbers = null;
+        for (int i = columnName.length() - 1; i > 0; --i) {
+            if (Character.isDigit(columnName.charAt(i))) {
+                numbers = String.valueOf(columnName.charAt(i)) + (numbers == null ? "" : numbers);
+            } else {
+                break;
+            }
+        }
+        return numbers;
+    }
+
     public static List<Table> getTablesWithOneColumn(Collection<Table> tables) {
         List<Table> singleColumnTables = new ArrayList<>();
 
         for (Table table : tables) {
-            if (table.getColumns().size() == 1)
+            if (table.getColumns().size() == 1) {
                 singleColumnTables.add(table);
+            }
         }
 
         return sortTablesByName(singleColumnTables);
@@ -184,8 +192,9 @@ public class DbAnalyzer {
     public static List<TableColumn> sortColumnsByTable(List<TableColumn> columns) {
         columns.sort((column1, column2) -> {
             int rc = column1.getTable().compareTo(column2.getTable());
-            if (rc == 0)
+            if (rc == 0) {
                 rc = column1.getName().compareToIgnoreCase(column2.getName());
+            }
             return rc;
         });
 
@@ -267,9 +276,9 @@ public class DbAnalyzer {
      * @param schemaSpec filter for schema/catalog
      */
     public static List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec) throws SQLException {
-        List<String> populatedSchemas = getPopulatedSchemas(meta, schemaSpec, false);
+        List<String> populatedSchemas = getPopulatedSchemas(meta, schemaSpec, getSchemas(meta));
         if (populatedSchemas.isEmpty()) {
-            return getPopulatedSchemas(meta, schemaSpec, true);
+            return getPopulatedSchemas(meta, schemaSpec, getCatalogs(meta));
         }
         return populatedSchemas;
     }
@@ -280,21 +289,46 @@ public class DbAnalyzer {
      *
      * @param meta DatabaseMetaData
      * @param schemaSpec filter for catalog or schema
-     * @param isCatalog look in catalogs or schemas
+     * @param candidates schemas to consider
      */
-    public static List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec, boolean isCatalog) throws SQLException {
-        Set<String> schemas = new TreeSet<>(); // alpha sorted
+    public static List<String> getPopulatedSchemas(
+        DatabaseMetaData meta,
+        String schemaSpec,
+        final List<String> candidates
+    ) {
         Pattern schemaRegex = Pattern.compile(schemaSpec);
 
-        for (String schema : (isCatalog ? getCatalogs(meta) : getSchemas(meta))) {
-            if (schemaRegex.matcher(schema).matches()) {
-                schemas.add(schema);
-            } else {
-                LOGGER.debug("Excluding schema {}: doesn't match '{}'", schema, schemaRegex);
-            }
-        }
+        final Iterable<String> matched = new Filtered<>(
+            candidates,
+            new WhenFalse<>(
+                schema -> schemaRegex.matcher(schema).matches(),
+                schema -> LOGGER.debug("Excluding schema {}: doesn't match '{}'", schema, schemaRegex)
+            )
+        );
 
-        return new ArrayList<>(schemas);
+        final Iterable<String> populated = new Filtered<>(
+            matched,
+            new WhenIf<>(
+                schema -> hasTables(meta, schema),
+                schema -> LOGGER.debug("Including schema {}: matches + \"{}\" and contains tables", schema, schemaRegex),
+                schema -> LOGGER.debug("Excluding schema {}: matches \"{}\" but contains no tables", schema, schemaRegex)
+            )
+        );
+
+        return StreamSupport.stream(populated.spliterator(), false)
+            .distinct()
+            .sorted()
+            .toList();
     }
 
+    public static boolean hasTables(
+        final DatabaseMetaData meta,
+        final String schema
+    ) {
+        try(final ResultSet rs = meta.getTables(null, schema, "%", null)) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
 }

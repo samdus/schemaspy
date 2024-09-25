@@ -8,23 +8,34 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=org.schemaspy%3Aschemaspy&metric=coverage)](https://sonarcloud.io/dashboard?id=org.schemaspy%3Aschemaspy)
 [![Gitter](https://badges.gitter.im/schemaspy/schemaspy.svg)](https://gitter.im/schemaspy/schemaspy?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-**SchemaSpy** is a database metadata analyzer. It helps your database administors and developers visualize, navigate and understand your data model. With an easy-to-use HTML-based report, traversing the entity-relationship diagram has never been simpler. Our product showcase is available at http://schemaspy.org/sample/index.html.
+**SchemaSpy** is a database metadata analyzer. It helps your database administrators and developers visualize, navigate and understand your data model. With an easy-to-use HTML-based report, traversing the entity-relationship diagram has never been simpler. Our product showcase is available at http://schemaspy.org/sample/index.html.
 
 [![SchemaSpy sample](http://schemaspy.org/img/example_page_epivirusurf.png)](http://schemaspy.org/samples/epivirusurf)
 
 # Installation
 
-SchemaSpy is a stand alone tool. Just download the lastest
-[JAR file](https://github.com/schemaspy/schemaspy/releases/download/v6.2.4/schemaspy-6.2.4.jar)
-or [Docker image](https://hub.docker.com/r/schemaspy/schemaspy/) and you're
-ready to go!
+SchemaSpy is a standalone application without GUI.
+Just download the latest [JAR file](https://github.com/schemaspy/schemaspy/releases/latest) or [Docker image](https://hub.docker.com/r/schemaspy/schemaspy/) and you're ready to go!
+To use SchemaSpy from Maven, please see the [Maven chapter](#maven) below.
 
 ```
+# replace '6.2.4' with latest version
 curl -L https://github.com/schemaspy/schemaspy/releases/download/v6.2.4/schemaspy-6.2.4.jar \
     --output ~/Downloads/schemaspy.jar
 ```
 
 > For unreleased bug fixes and features-in-progress, download our [snapshot JAR](https://schemaspy.org/schemaspy/download.html) or use Docker tag `snapshot`
+
+## Maven
+
+SchemaSpy releases two types of JAR files: a bare-bone JAR and a fat JAR including all dependencies.
+Both JARs are published to Maven Central.
+The fat JAR is also attached to releases on GitHub.
+The "maven central" badge at the top of this page will take you straight to the latest version on Maven Central.
+
+The Maven GAV of the two artifacts is as follows:
+- bare-bone JAR: `org.schemaspy:schemaspy:<version>`
+- fat JAR: `org.schemaspy:schemaspy:<version>:app` **← note the `app` classifier**
 
 # Quick start
 
@@ -70,7 +81,7 @@ Be sure to check out the guides provided by the community later in this README.
 
 ## On-demand database documentation
 
-The prefered way to document databases is through entity-relationship (ER) diagrams.
+The preferred way to document databases is through entity-relationship (ER) diagrams.
 However, drawing these diagrams manually is such a time-consuming and error-prone
 process that we hardly ever draw them in practice. When the diagrams *are* drawn,
 they rarely stay up-to-date. With SchemaSpy, this is no longer a problem.
@@ -117,6 +128,8 @@ For perpetuating SchemaSpy ever since:
 * [Jesper Olsson](https://github.com/jesperolsson-se)
 
 For creating tutorials and guides for the community:
+* :cn: [SQLite 可视化SQLite数据库Schemaspy](https://geek-docs.com/sqlite/sqlite-questions/370_sqlite_visualize_sqlite_database_schemaspy.html) by Geek Tutorial
+* :czech_republic: [Automatické vytvoření dokumentace k databázi s využitím nástroje SchemaSpy ](https://www.root.cz/clanky/automaticke-vytvoreni-dokumentace-k-databazi-s-vyuzitim-nastroje-schemaspy/) by Pavel Tišnovský
 * :de: [Datenbank-Analyse mit SchemaSpy](https://www.jentsch.io/datenbank-analyse-mit-schemaspy/) by Michael Jentsch
 * :de: [Quick Tipp: Eine Datenbank Struktur verstehen mit Hilfe von schemaspy](https://www.exensio.de/news-medien/newsreader-blog/quick-tipp-eine-datenbank-struktur-verstehen-mit-hilfe-von-schemaspy) by von Irving Tschepke
 * :es: :arrow_forward: [Ejemplo de Uso de schemaspy](https://www.youtube.com/watch?v=13MMSeDaWao) by MGS Educación, Tecnología y Juventud
@@ -128,8 +141,10 @@ For creating tutorials and guides for the community:
 * :fr: [Documenter une base de données avec SchemaSpy](https://dataforeveryone.medium.com/documenter-une-base-de-donn%C3%A9es-avec-schemaspy-e0f56a6fcfb3) by Data 4 Everyone!
 * :jp: [SchemaSpyでデータベースのドキュメントを生成してみた](https://dev.classmethod.jp/articles/schemaspy-doc/) By 坂井裕介
 * :jp: [SchemaSpyでER図を生成する](https://zenn.dev/onozaty/articles/schema-spy-er) By @onozaty
+* :portugal: :arrow_forward: [SchemaSpy - fácil de usar e já salvou meu emprego!](https://www.youtube.com/watch?v=vLsmYseBIh0) By Dev Multitask
 * :portugal: [Documentando bancos com Schemaspy](https://www.linkedin.com/pulse/documentando-bancos-com-schemaspy-krisnamourt-silva/) By Krisnamourt Silva
 * :thailand: [แนะนำ SchemaSpy เครื่องมือทำเอกสาร Database](https://knowlats.dev/how-to-use-schemaspy/) by @icegotcha
+* :vietnam: [Hướng dẫn sử dụng SchemaSpy](https://viblo.asia/p/huong-dan-su-dung-schemaspy-ymwGXV23R4p1) by Pham Xuan Dung
 * :open_book: [Java Power Tools](https://www.goodreads.com/en/book/show/2631468) by John Ferguson Smart
 * :open_book: [Monolith to Microservices: Sustaining Productivity While Detangling the System](https://www.goodreads.com/en/book/show/44144499) by Sam Newman
 * [Documenting your database with SchemaSpy](https://robintegg.com/2019/01/29/documenting-your-database-with-schemaspy.html) by Robin Tegg
@@ -187,7 +202,7 @@ We are proud to note that SchemaSpy assists researchers in their work.
 To cite SchemaSpy, please use:
 
 ```
-SchemaSpy Team (2023) SchemaSpy: Database documentation built easy. SchemaSpy. URL https://schemaspy.org/
+SchemaSpy Team (2024) SchemaSpy: Database documentation built easy. SchemaSpy. URL https://schemaspy.org/
 ```
 
 The BibTeX entry for LaTeX users is:
@@ -197,7 +212,7 @@ The BibTeX entry for LaTeX users is:
   title = {SchemaSpy: Database documentation built easy},
   author = {{SchemaSpy Team}},
   organization = {SchemaSpy},
-  year = {2023},
+  year = {2024},
   url = {https://schemaspy.org/}
 }
 ```
@@ -208,17 +223,17 @@ The BibTeX entry for LaTeX users is:
 SchemaSpy is built using maven and we utilize the maven wrapper.  
 __Windows__ `mvnw.cmd package`    
 __Linux__ `./mvnw package`  
-The resulting application can be found in `target`  
+The resulting application can be found in `target`
 
 ### Analyzing
 You need your own SonarQube:  
 https://hub.docker.com/_/sonarqube/  
 __Windows__ `mvnw.cmd -P sonar clean verify -Dsonar.host.url=http://$(boot2docker ip):9000 -Dsonar.jdbc.url="jdbc:h2:tcp://$(boot2docker ip)/sonar"`  
-__Linux__ `./mvnw -P sonar clean verify`  
+__Linux__ `./mvnw -P sonar clean verify`
 
 Watch results at:  
 __Linux__ `http://localhost:9000`  
-__Windows__ `http://$(boot2docker ip):9000`  
+__Windows__ `http://$(boot2docker ip):9000`
 
 ## Documentation
 Built using Python  

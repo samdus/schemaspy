@@ -21,9 +21,9 @@
  */
 package org.schemaspy.view;
 
-import org.schemaspy.model.Routine;
 import org.schemaspy.model.Type;
-import org.schemaspy.util.Markdown;
+import org.schemaspy.util.markup.Markdown;
+import org.schemaspy.util.markup.MarkupFromString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +55,7 @@ public class HtmlTypesPage {
                 .templateName("types.html")
                 .scriptName("types.js")
                 .addToScope("types", types)
-                .addToScope("md2html", (Function<String,String>) md -> new Markdown(md, mustacheCompiler.getRootPath(0)).toHtml())
+                .addToScope("md2html", (Function<String,String>) md -> new Markdown(new MarkupFromString(md)).value())
                 .getPageData();
 
         try {

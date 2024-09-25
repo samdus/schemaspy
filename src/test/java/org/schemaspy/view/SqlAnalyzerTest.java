@@ -18,20 +18,20 @@
  */
 package org.schemaspy.view;
 
-import org.junit.Test;
-import org.schemaspy.input.dbms.service.DbmsService;
-import org.schemaspy.model.Table;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.jupiter.api.Test;
+import org.schemaspy.input.dbms.service.keywords.Sql92Keywords;
+import org.schemaspy.model.Table;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class SqlAnalyzerTest {
+class SqlAnalyzerTest {
 
     private static Table createTable(String container, String name) {
         Table table = mock(Table.class);
@@ -41,14 +41,19 @@ public class SqlAnalyzerTest {
     }
 
     @Test
-    public void willIdentifySQLServerQuotedTables() {
+    void willIdentifySQLServerQuotedTables() {
         List<Table> tables = Arrays.asList(
                 createTable("htmlit", "group"),
                 createTable("htmlit", "user"),
                 createTable("htmlit", "resources"),
                 createTable("htmlit", "group_resources")
         );
-        SqlAnalyzer sqlAnalyzer = new SqlAnalyzer("", DbmsService.getSql92Keywords(), tables, Collections.emptyList());
+        SqlAnalyzer sqlAnalyzer = new SqlAnalyzer(
+            "",
+            new Sql92Keywords().value(),
+            tables,
+            Collections.emptyList()
+        );
 
 
         String viewDefinition = "CREATE VIEW htmlit.userAndGroup AS SELECT u.name AS UserName, g.name AS GroupName FROM [htmlit].[user] u JOIN [htmlit].[group] g ON u.groupId = g.groupId;";

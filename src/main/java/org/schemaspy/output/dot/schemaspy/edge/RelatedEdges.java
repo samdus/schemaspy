@@ -31,33 +31,57 @@ public class RelatedEdges implements Edges {
     @Override
     public Set<Edge> unique() {
         Set<Edge> relatedConnectors = new HashSet<>();
-        if (!includeExcluded && column.isExcluded())
+        if (!includeExcluded && column.isExcluded()) {
             return relatedConnectors;
+        }
 
+        relatedConnectors.addAll(relatedParents());
+        relatedConnectors.addAll(relatedChildren());
+
+        return relatedConnectors;
+    }
+
+    private Set<Edge> relatedParents() {
+        final Set<Edge> relatedConnectors = new HashSet<>();
         for (TableColumn parentColumn : column.getParents()) {
             Table parentTable = parentColumn.getTable();
-            if (targetTable != null && parentTable != targetTable)
+            if (isNotTarget(parentTable)) {
                 continue;
-            if (targetTable == null && !includeExcluded && parentColumn.isExcluded())
+            }
+            if (shouldExclude(parentColumn)) {
                 continue;
+            }
             boolean implied = column.getParentConstraint(parentColumn).isImplied();
             if (!implied || includeImplied) {
                 relatedConnectors.add(new Edge(parentColumn, column, implied));
             }
         }
+        return relatedConnectors;
+    }
 
+    private boolean isNotTarget(final Table candidate) {
+        return this.targetTable != null && candidate != this.targetTable;
+    }
+
+    private boolean shouldExclude(final TableColumn candidate) {
+        return this.targetTable == null && !this.includeExcluded && candidate.isExcluded();
+    }
+
+    private Set<Edge> relatedChildren() {
+        final Set<Edge> relatedConnectors = new HashSet<>();
         for (TableColumn childColumn : column.getChildren()) {
             Table childTable = childColumn.getTable();
-            if (targetTable != null && childTable != targetTable)
+            if (isNotTarget(childTable)) {
                 continue;
-            if (targetTable == null && !includeExcluded && childColumn.isExcluded())
+            }
+            if (shouldExclude(childColumn)) {
                 continue;
+            }
             boolean implied = column.getChildConstraint(childColumn).isImplied();
             if (!implied || includeImplied) {
                 relatedConnectors.add(new Edge(column, childColumn, implied));
             }
         }
-
         return relatedConnectors;
     }
 }

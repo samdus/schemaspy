@@ -18,7 +18,7 @@
  */
 package org.schemaspy.output.xml.dom;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.schemaspy.model.Database;
 import org.schemaspy.model.Table;
 import org.schemaspy.model.TableColumn;
@@ -31,18 +31,17 @@ import org.xmlunit.diff.Diff;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class XmlIndexFormatterTest {
+class XmlIndexFormatterTest {
 
-    private XmlIndexFormatter xmlIndexFormatter = new XmlIndexFormatter();
+    private final XmlIndexFormatter xmlIndexFormatter = new XmlIndexFormatter();
 
     @Test
-    public void appendIndex() throws ParserConfigurationException, TransformerException {
+    void appendIndex() throws ParserConfigurationException {
 
         String expecting = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><table>\n" +
                 "   <index name=\"test\" unique=\"false\">\n" +

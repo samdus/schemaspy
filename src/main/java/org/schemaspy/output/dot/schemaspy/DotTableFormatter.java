@@ -158,7 +158,7 @@ public class DotTableFormatter implements Relationships {
 
             for (Table participantB : participants) {
                 for (Edge edge : new PairEdges(participantA, participantB, false, includeImplied).unique()) {
-                    if (twoDegreesOfSeparation && (allCousins.contains(participantA) || allCousins.contains(participantB))) {
+                    if (isCousinEdge(allCousins, participantA, participantB)) {
                         allCousinEdges.add(edge);
                     } else {
                         edges.add(edge);
@@ -167,36 +167,15 @@ public class DotTableFormatter implements Relationships {
             }
         }
 
-        // now directly connect the loose ends to the title of the
-        // 2nd degree of separation tables
-        for (Edge edge : allCousinEdges) {
-            if (allCousins.contains(edge.getParentTable()) && !relatedTables.contains(edge.getParentTable()))
-                edge.connectToParentTitle();
-            if (allCousins.contains(edge.getChildTable()) && !relatedTables.contains(edge.getChildTable()))
-                edge.connectToChildTitle();
-        }
+        connectLooseEnds(allCousinEdges, allCousins, relatedTables);
 
         // include the table itself
         nodes.put(table, new DotNode(table, false, new DotNodeConfig(true, true), runtimeDotConfig));
 
         edges.addAll(allCousinEdges);
-        
-        for (Edge edge : edges) {
-            if (edge.isImplied()) {
-                DotNode node = nodes.get(edge.getParentTable());
-                if (node != null) {
-                    node.setShowImplied(true);
-                }
-            }
-        }
-        for (Edge edge : edges) {
-            if (edge.isImplied()) {
-                DotNode node = nodes.get(edge.getChildTable());
-                if (node != null) {
-                    node.setShowImplied(true);
-                }
-            }
-        }
+
+        implyParents(edges, nodes);
+        implyChildren(edges, nodes);
 
         List<Element> elements = new LinkedList<>();
         elements.addAll(edges);
@@ -315,5 +294,67 @@ public class DotTableFormatter implements Relationships {
     private Set<Table> cousinsOf(Table relatedTable) {
         Factory cousinsFactory = getFactory(relatedTable, false);
         return immediateRelatives(relatedTable, cousinsFactory, includeImplied);
+    }
+
+    private boolean isCousinEdge(
+        final Set<Table> allCousins,
+        final Table participantA,
+        final Table participantB
+    ) {
+        return twoDegreesOfSeparation && (allCousins.contains(participantA) || allCousins.contains(participantB));
+    }
+
+    /**
+     * Directly connect the loose ends to the title of the 2nd degree of
+     * separation tables.
+     */
+    private void connectLooseEnds(
+        final Set<Edge> allCousinEdges,
+        final Set<Table> allCousins,
+        final Set<Table> relatedTables
+    ) {
+        for (Edge edge : allCousinEdges) {
+            if (this.isCousinTable(edge.getParentTable(), allCousins, relatedTables)) {
+                edge.connectToParentTitle();
+            }
+            if (this.isCousinTable(edge.getChildTable(), allCousins, relatedTables)) {
+                edge.connectToChildTitle();
+            }
+        }
+    }
+
+    private boolean isCousinTable(
+        final Table candidate,
+        final Set<Table> allCousins,
+        final Set<Table> relatedTables){
+        return allCousins.contains(candidate) && !relatedTables.contains(candidate);
+    }
+
+        private void implyParents(
+        final Set<Edge> edges,
+        final Map<Table, DotNode> nodes
+    ) {
+        for (Edge edge : edges) {
+            if (edge.isImplied()) {
+                DotNode node = nodes.get(edge.getParentTable());
+                if (node != null) {
+                    node.setShowImplied(true);
+                }
+            }
+        }
+    }
+
+    private void implyChildren(
+        final Set<Edge> edges,
+        final Map<Table, DotNode> nodes
+    ) {
+        for (Edge edge : edges) {
+            if (edge.isImplied()) {
+                DotNode node = nodes.get(edge.getChildTable());
+                if (node != null) {
+                    node.setShowImplied(true);
+                }
+            }
+        }
     }
 }

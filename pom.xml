@@ -17,8 +17,7 @@
 
         <spring-boot.version>3.1.2</spring-boot.version>
         <slf4j.version>2.0.7</slf4j.version>
-        <testcontainers-java.version>1.18.3</testcontainers-java.version>
-        <testcontainers-junit.version>1.10.1.0.0</testcontainers-junit.version>
+        <testcontainers-java.version>1.19.3</testcontainers-java.version>
 
         <java.version>17</java.version>
         <skip.surefire>false</skip.surefire>
@@ -90,9 +89,14 @@
                 <version>0.34.32</version>
             </dependency>
             <dependency>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctorj</artifactId>
+                <version>2.5.10</version>
+            </dependency>
+            <dependency>
                 <groupId>org.json</groupId>
                 <artifactId>json</artifactId>
-                <version>20230227</version>
+                <version>20231013</version>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
@@ -109,7 +113,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.3</version>
+                <version>5.10.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -131,6 +135,10 @@
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>
             <artifactId>flexmark-profile-pegdown</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.asciidoctor</groupId>
+            <artifactId>asciidoctorj</artifactId>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>
@@ -160,7 +168,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.8</version>
+            <version>1.4.12</version>
         </dependency>
         <dependency>
             <groupId>org.fusesource.jansi</groupId>
@@ -217,12 +225,6 @@
             <version>1.69</version>
         </dependency>
         <dependency>
-            <groupId>com.github.npetzall.testcontainers.junit</groupId>
-            <artifactId>jdbc</artifactId>
-            <version>${testcontainers-junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <version>${testcontainers-java.version}</version>
@@ -262,6 +264,12 @@
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
             <version>8.0.28</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mariadb</artifactId>
+            <version>${testcontainers-java.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -347,6 +355,30 @@
                 </includes>
             </resource>
         </resources>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.6.3</version>
+                    <configuration>
+                        <doctitle>API for ${project.name} ${project.version}</doctitle>
+                        <windowtitle>API for ${project.name} ${project.version}</windowtitle>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.1.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.1.2</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -423,20 +455,19 @@
                 </executions>
                 <configuration>
                     <classifier>app</classifier>
+                    <requiresUnpack>
+                        <dependency>
+                            <groupId>org.asciidoctor</groupId>
+                            <artifactId>asciidoctorj</artifactId>
+                        </dependency>
+                    </requiresUnpack>
                 </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.2.0</version>
-                <configuration>
-                    <doctitle>API for ${project.name} ${project.version}</doctitle>
-                    <windowtitle>API for ${project.name} ${project.version}</windowtitle>
-                </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.1.2</version>
                 <configuration>
                     <skipTests>${skip.surefire}</skipTests>
                     <argLine>
@@ -445,18 +476,18 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.1.2</version>
                 <configuration>
                     <includes>
                         <include>**/*IT.java</include>
                         <include>**/*Suite.java</include>
                     </includes>
                     <excludes>
+                        <exclude>**/PgSql*IT.java</exclude>
                         <exclude>**/Mysql*IT.java</exclude>
                         <exclude>**/MSSQLServer*IT.java</exclude>
-                        <exclude>**/PgSql*IT.java</exclude>
+                        <exclude>**/Oracle*IT.java</exclude>
+                        <exclude>**/Informix*IT.java</exclude>
                     </excludes>
                     <systemPropertyVariables>
                         <pomImplementationVersion>${project.version}</pomImplementationVersion>
@@ -521,12 +552,7 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.5.0</version>
-                        <configuration>
-                            <source>8</source>
-                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -640,7 +666,6 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <properties>
@@ -652,7 +677,6 @@
                         </configuration>
                     </plugin>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <configuration>
                             <properties>

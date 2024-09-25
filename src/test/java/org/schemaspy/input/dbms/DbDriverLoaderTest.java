@@ -18,28 +18,19 @@
  */
 package org.schemaspy.input.dbms;
 
-import com.beust.jcommander.JCommander;
-import org.dummy.DummyDriver;
-import org.dummy.DummyDriverUnsatisfiedConnect;
-import org.dummy.DummyDriverUnsatisfiedCtor;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.Mockito;
-import org.schemaspy.input.dbms.config.SimplePropertiesResolver;
-import org.schemaspy.input.dbms.driverpath.DpMissingPathChecked;
-import org.schemaspy.input.dbms.exceptions.ConnectionFailure;
-import org.schemaspy.testing.H2MemoryRule;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URI;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Driver;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Collections;
+import java.util.List;
+
+import com.beust.jcommander.JCommander;
+import org.dummy.DummyDriverUnsatisfiedCtor;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.schemaspy.input.dbms.config.SimplePropertiesResolver;
+import org.schemaspy.testing.H2MemoryExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -47,107 +38,72 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 /**
  * @author Nils Petzaell
  */
-public class DbDriverLoaderTest {
+class DbDriverLoaderTest {
 
-  @Rule
-  public H2MemoryRule h2 = new H2MemoryRule("DbDriverLoaderTest");
+  @RegisterExtension
+  static H2MemoryExtension h2 = new H2MemoryExtension("DbDriverLoaderTest");
 
   @Test
-  public void testGetConnection() throws IOException {
+  void testGetConnection() {
     assertThat(
-        new DbDriverLoader(
+        new DriverFromConfig(
             parse("-t", Paths.get("src", "test", "resources", "integrationTesting", "dbTypes", "h2memory.properties").toString(), "-u", "sa", "-db", "DbDriverLoaderTest")
-        ).getConnection()
+        ).driver()
     ).isNotNull();
   }
 
   @Test
-  public void driverLoaderCachesDrivers() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("");
+  void driverLoaderCachesDrivers() {
     String[] drivers = new String[]{"org.h2.Driver"};
 
-    DbDriverLoader driverLoader1 = new DbDriverLoader(parse(), builder, drivers, () -> "");
-    Driver driver1 = driverLoader1.getDriver();
-    DbDriverLoader driverLoader2 = new DbDriverLoader(parse(), builder, drivers, () -> "");
-    Driver driver2 = driverLoader2.getDriver();
+    DbDriverLoader driverLoader1 = new DbDriverLoader(drivers, Collections::emptyIterator);
+    Driver driver1 = driverLoader1.driver();
+    Driver driver2 = driverLoader1.driver();
     assertThat(driver1).isSameAs(driver2);
   }
 
   @Test
-  public void driverPathWorks() throws SQLException {
-    String driverPath = Paths.get("src", "test", "resources", "driverFolder", "dummy.jar").toString();
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("");
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, new String[]{"dummy.DummyDriver"}, () -> driverPath);
-    Driver driver = driverLoader.getDriver();
+  void driverPathWorks() throws SQLException {
+    Path driverPath = Paths.get("src", "test", "resources", "driverFolder", "dummy.jar");
+    DbDriverLoader driverLoader = new DbDriverLoader(
+      new String[]{"dummy.DummyDriver"},
+      () -> List.of(driverPath).iterator());
+    Driver driver = driverLoader.driver();
     assertThat(driver).isNotNull();
     assertThat(driver.acceptsURL("dummy")).isTrue();
   }
 
   @Test
-  public void connectionIsNullThrowsException() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("dummy");
-    String[] drivers = new String[]{DummyDriver.class.getName()};
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, drivers, () -> "");
-    assertThatExceptionOfType(ConnectionFailure.class)
-        .isThrownBy(driverLoader::getConnection);
-  }
-
-  @Test
-  public void nativeErrorInDriverCreationPassesUncaught() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("dummy");
+  void nativeErrorInDriverCreationPassesUncaught() {
     String[] drivers = new String[]{DummyDriverUnsatisfiedCtor.class.getName(), "dummy.dummy"};
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, drivers, () -> "");
+    DbDriverLoader driverLoader = new DbDriverLoader(drivers, Collections::emptyIterator);
     assertThatExceptionOfType(UnsatisfiedLinkError.class)
-        .isThrownBy(driverLoader::getConnection);
+        .isThrownBy(driverLoader::driver);
   }
 
   @Test
-  public void nativeErrorInConnectPassesUncaught() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("dummy");
-    String[] drivers = new String[]{DummyDriverUnsatisfiedConnect.class.getName()};
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, drivers, () -> "");
-    assertThatExceptionOfType(UnsatisfiedLinkError.class)
-        .isThrownBy(() -> driverLoader.getConnection());
-  }
-
-  @Test
-  public void DriverMissingWithClasspathThrowsException() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("dummy");
-    final String driverPath = Paths.get("src", "test", "resources", "driverFolder", "dummy.jar")
-                                   .toString() + File.pathSeparator + "missing";
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, new String[]{"bla.bla.bla", "no.no.no"}, () -> driverPath);
-    assertThatExceptionOfType(ConnectionFailure.class)
-        .isThrownBy(driverLoader::getConnection)
-        .withCauseInstanceOf(ConnectionFailure.class);
-  }
-
-  @Test
-  public void firstDriverClassMissingSecondExists() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("");
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, new String[]{"com.no", "org.h2.Driver"}, () -> "");
-    Driver driver = driverLoader.getDriver();
+  void firstDriverClassMissingSecondExists() {
+    DbDriverLoader driverLoader = new DbDriverLoader(
+      new String[]{"com.no", "org.h2.Driver"},
+      Collections::emptyIterator
+    );
+    Driver driver = driverLoader.driver();
     assertThat(driver).isNotNull();
     assertThat(driver.getClass().getName()).isEqualTo("org.h2.Driver");
   }
 
   @Test
-  public void twoDriversBothExists() {
-    ConnectionURLBuilder builder = Mockito.mock(ConnectionURLBuilder.class);
-    Mockito.when(builder.build()).thenReturn("");
-    DbDriverLoader driverLoader = new DbDriverLoader(parse(), builder, new String[]{"com.mysql.cj.jdbc.Driver", "com.mysql.jdbc.Driver"}, () -> "");
-    Driver driver = driverLoader.getDriver();
+  void twoDriversBothExists() {
+    DbDriverLoader driverLoader = new DbDriverLoader(
+      new String[]{"com.mysql.cj.jdbc.Driver", "com.mysql.jdbc.Driver"},
+      Collections::emptyIterator
+    );
+    Driver driver = driverLoader.driver();
     assertThat(driver).isNotNull();
     assertThat(driver.getClass().getName()).isEqualTo("com.mysql.cj.jdbc.Driver");
   }
 
-  ConnectionConfig parse(String... args) {
+  private ConnectionConfig parse(String... args) {
     DatabaseTypeConfigCli databaseTypeConfigCli = new DatabaseTypeConfigCli(new SimplePropertiesResolver());
     ConnectionConfigCli connectionConfigCli = new ConnectionConfigCli(databaseTypeConfigCli);
     JCommander jCommander = JCommander.newBuilder().build();
